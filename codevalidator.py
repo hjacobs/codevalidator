@@ -2,6 +2,7 @@
 
 import argparse
 import fnmatch
+import json
 import os
 import re
 import sys
@@ -48,7 +49,7 @@ def _validate_utf8(fd):
     try:
         fd.read().decode('utf-8')
     except UnicodeDecodeError:
-        return False;
+        return False
     return True
 
 @message('has UTF-8 byte order mark (BOM)')
@@ -109,9 +110,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Validate source code files.')
     parser.add_argument('-r', '--recursive', action='store_true',
         help='process given directories recursively')
+    parser.add_argument('-c', '--config',
+        help='use custom configuration file')
     parser.add_argument('files', metavar='FILES', nargs='+',
         help='list of source files to validate')
     args = parser.parse_args()
+    if args.config:
+        config = json.load(open(args.config, 'rb'))
     for f in args.files:
         if args.recursive:
             validate_directory(f)

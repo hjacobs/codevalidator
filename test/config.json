@@ -1,0 +1,21 @@
+{
+    "exclude_dirs": [".svn"],
+    "rules": {
+        "*.java": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.jsp": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.vm": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.properties": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.py": ["utf8", "nobom", "notabs", "nocr", "indent4", "notrailingws"],
+        "*.php": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.sh": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.sql": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.sql_diff": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.xml": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.html": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.txt": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.js": ["utf8", "nobom", "notabs", "nocr", "indent4", "notrailingws"],
+        "*.less": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.css": ["utf8", "nobom", "notabs", "nocr"]
+    }
+}
+
