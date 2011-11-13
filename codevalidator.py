@@ -6,9 +6,13 @@ import json
 import os
 import re
 import sys
+from cStringIO import StringIO
+from collections import defaultdict
+from lxml import etree
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
+INDENTATION = '    '
 
 DEFAULT_CONFIG = {
     'exclude_dirs': ['.svn'],
@@ -19,15 +23,31 @@ DEFAULT_CONFIG = {
         '*.py': ['utf8', 'nobom', 'notabs', 'nocr', 'indent4', 'notrailingws'],
         '*.sh': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
         '*.sql': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.xml': ['utf8', 'nobom', 'notabs', 'nocr', 'indent4', 'notrailingws'],
+        '*.xml': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws', 'xmlfmt'],
         '*.html': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.js': ['utf8', 'nobom', 'notabs', 'nocr', 'indent4', 'notrailingws'],
+        '*.js': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
         '*.less': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
         '*.css': ['utf8', 'nobom', 'notabs', 'nocr'],
     }
 }
 
 config = DEFAULT_CONFIG
+
+def indent_xml(elem, level=0):
+    """xmlindent from http://infix.se/2007/02/06/gentlemen-indent-your-xml"""
+    i = "\n" + level * INDENTATION
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + INDENTATION
+        for e in elem:
+            indent_xml(e, level+1)
+            if not e.tail or not e.tail.strip():
+                e.tail = i + INDENTATION
+        if not e.tail or not e.tail.strip():
+            e.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 def message(msg):
     """simple decorator to attach a error message to a validation function"""
@@ -40,9 +60,15 @@ def message(msg):
 def _validate_notabs(fd):
     return '\t' not in fd.read()
 
+def _fix_notabs(src, dst):
+    dst.write(src.read().replace('\t', '   ')) 
+
 @message('contains carriage return (CR)')
 def _validate_nocr(fd):
     return '\r' not in fd.read()
+
+def _fix_nocr(src, dst):
+    dst.write(src.read().replace('\r', ''))
 
 @message('is not UTF-8 encoded')
 def _validate_utf8(fd):
@@ -75,9 +101,31 @@ def _validate_notrailingws(fd):
             return False
     return True
 
+def _fix_notrailingws(src, dst):
+    for line in src:
+        dst.write(line.rstrip())
+        dst.write('\n')
+
+@message('is not well-formatted (pretty-printed) XML')
+def _validate_xmlfmt(fd):
+    source = StringIO(fd.read())
+    formatted = StringIO()
+    _fix_xmlfmt(source, formatted)
+    return source.getvalue() == formatted.getvalue()
+
+def _fix_xmlfmt(src, dst):
+    parser = etree.XMLParser(resolve_entities=False)
+    tree = etree.parse(src, parser)
+    indent_xml(tree.getroot())
+    tree.write(dst, encoding='utf-8', xml_declaration=True)
+    dst.write('\n')
+
+
 validation_errors = []
-def _error(fname, rule, func):
-    print '{0}: {1}'.format(fname, func.message)
+def _error(fname, rule, func, message=None):
+    if not message:
+        message = func.message
+    print '{0}: {1}'.format(fname, message)
     validation_errors.append((fname, rule))
 
 def validate_file_with_rules(fname, rules):
@@ -88,9 +136,13 @@ def validate_file_with_rules(fname, rules):
             if not func:
                 print rule, 'does not exist'
                 continue
-            res = func(fd)
-            if not res:
-                _error(fname, rule, func)
+            try:
+                res = func(fd)
+            except Exception, e:
+                _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
+            else:
+                if not res:
+                    _error(fname, rule, func)
 
 def validate_file(fname):
     for pattern, rules in config['rules'].items():
@@ -105,13 +157,38 @@ def validate_directory(path):
         for fname in filenames:
             validate_file(os.path.join(root, fname))
 
+def fix_files():
+    rules_by_file = defaultdict(list)
+    for fname, rule in validation_errors:
+        rules_by_file[fname].append(rule)
+    for fname, rules in rules_by_file.items():
+        was_fixed = False
+        with open(fname, 'rb') as fd:
+            dst = fd
+            for rule in rules: 
+                func = globals().get('_fix_' + rule)
+                if func:
+                    src = dst
+                    dst = StringIO()
+                    src.seek(0)
+                    try:
+                        func(src, dst)
+                        was_fixed = True
+                    except Exception, e:
+                        print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
+        if was_fixed:
+            with open(fname, 'wb') as fd:
+                fd.write(dst.getvalue())
+    
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Validate source code files.')
+    parser = argparse.ArgumentParser(description='Validate source code files and optionally reformat them.')
     parser.add_argument('-r', '--recursive', action='store_true',
         help='process given directories recursively')
     parser.add_argument('-c', '--config',
         help='use custom configuration file')
+    parser.add_argument('-f', '--fix', action='store_true',
+        help='try to fix validation errors (by reformatting files)')
     parser.add_argument('files', metavar='FILES', nargs='+',
         help='list of source files to validate')
     args = parser.parse_args()
@@ -123,5 +200,7 @@ if __name__ == '__main__':
         else:
             validate_file(f)
     if validation_errors:
+        if args.fix:
+            fix_files() 
         sys.exit(1)
 

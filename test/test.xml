@@ -1,0 +1,6 @@
+<Root>
+  <Element1 attr="val"><SubElement></SubElement>
+  </Element1>
+<!-- test comment -->
+   <Element2>text content</Element2>
+</Root>

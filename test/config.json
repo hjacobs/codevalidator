@@ -10,7 +10,7 @@
         "*.sh": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
         "*.sql": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
         "*.sql_diff": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
-        "*.xml": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
+        "*.xml": ["utf8", "nobom", "notabs", "nocr", "notrailingws", "xmlfmt"],
         "*.html": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
         "*.txt": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
         "*.js": ["utf8", "nobom", "notabs", "nocr", "indent4", "notrailingws"],
