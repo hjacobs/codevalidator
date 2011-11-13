@@ -191,14 +191,19 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--recursive', action='store_true',
         help='process given directories recursively')
     parser.add_argument('-c', '--config',
-        help='use custom configuration file')
+        help='use custom configuration file (default: ~/.codevalidatorrc)')
     parser.add_argument('-f', '--fix', action='store_true',
         help='try to fix validation errors (by reformatting files)')
     parser.add_argument('files', metavar='FILES', nargs='+',
         help='list of source files to validate')
     args = parser.parse_args()
+
+    config_file = os.path.expanduser('~/.codevalidatorrc')
+    if os.path.isfile(config_file) and not args.config:
+        args.config = config_file
     if args.config:
         config = json.load(open(args.config, 'rb'))
+
     for f in args.files:
         if args.recursive:
             validate_directory(f)
