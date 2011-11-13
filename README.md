@@ -22,5 +22,9 @@ Fixing test files (removing trailing whitespace, XML format):
 
 Using custom configuration file:
 
-    ./configuration.py -c test/config.json test/*
+    ./codevalidator.py -c test/config.json test/*
+
+Validate and fix a whole directory tree:
+
+    ./codevalidator.py -c myconfig.json -rf /path/to/mydirectory
 
