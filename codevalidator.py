@@ -1,4 +1,9 @@
 #!/usr/bin/python
+"""
+Simple source code validator with file reformatting option (remove trailing WS, pretty print XML, ..)
+
+written by Henning Jacobs <henning@jacobs1.de>
+"""
 
 import argparse
 import fnmatch
@@ -61,7 +66,7 @@ def _validate_notabs(fd):
     return '\t' not in fd.read()
 
 def _fix_notabs(src, dst):
-    dst.write(src.read().replace('\t', '   ')) 
+    dst.write(src.read().replace('\t', '   '))
 
 @message('contains carriage return (CR)')
 def _validate_nocr(fd):
@@ -165,7 +170,7 @@ def fix_files():
         was_fixed = False
         with open(fname, 'rb') as fd:
             dst = fd
-            for rule in rules: 
+            for rule in rules:
                 func = globals().get('_fix_' + rule)
                 if func:
                     src = dst
@@ -179,7 +184,7 @@ def fix_files():
         if was_fixed:
             with open(fname, 'wb') as fd:
                 fd.write(dst.getvalue())
-    
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Validate source code files and optionally reformat them.')
@@ -201,6 +206,6 @@ if __name__ == '__main__':
             validate_file(f)
     if validation_errors:
         if args.fix:
-            fix_files() 
+            fix_files()
         sys.exit(1)
 
