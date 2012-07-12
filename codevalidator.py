@@ -14,27 +14,35 @@ import sys
 from cStringIO import StringIO
 from collections import defaultdict
 from lxml import etree
+from pythontidy import PythonTidy
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
 INDENTATION = '    '
 
+DEFAULT_RULES = ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws']
+
 DEFAULT_CONFIG = {
-    'exclude_dirs': ['.svn'],
+    'exclude_dirs': ['.svn', '.git'],
     'rules': {
-        '*.java': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.jsp': ['utf8', 'nobom', 'notabs', 'nocr'],
-        '*.properties': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.py': ['utf8', 'nobom', 'notabs', 'nocr', 'indent4', 'notrailingws'],
-        '*.sh': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.sql': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.xml': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws', 'xmlfmt'],
-        '*.html': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.js': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.less': ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws'],
-        '*.css': ['utf8', 'nobom', 'notabs', 'nocr'],
+        '*.java': DEFAULT_RULES,
+        "*.jsp": DEFAULT_RULES,
+        "*.vm": DEFAULT_RULES,
+        '*.properties': DEFAULT_RULES,
+        '*.py': DEFAULT_RULES + ['pythontidy'],
+        "*.php": DEFAULT_RULES,
+        '*.sh': DEFAULT_RULES,
+        '*.sql': DEFAULT_RULES,
+        "*.sql_diff": DEFAULT_RULES,
+        '*.xml': DEFAULT_RULES + ['xmlfmt'],
+        '*.html': DEFAULT_RULES,
+        "*.txt": DEFAULT_RULES,
+        '*.js': DEFAULT_RULES,
+        '*.less': DEFAULT_RULES,
+        '*.css': DEFAULT_RULES
     }
 }
+
 
 config = DEFAULT_CONFIG
 
@@ -125,6 +133,15 @@ def _fix_xmlfmt(src, dst):
     tree.write(dst, encoding='utf-8', xml_declaration=True)
     dst.write('\n')
 
+@message('is not PythonTidy formatted')
+def _validate_pythontidy(fd):
+    source = StringIO(fd.read())
+    formatted = StringIO()
+    PythonTidy.tidy_up(fd, formatted)
+    return source.getvalue() == formatted.getvalue()
+
+def _fix_pythontidy(src, dst):
+    PythonTidy.tidy_up(src, dst)
 
 validation_errors = []
 def _error(fname, rule, func, message=None):
