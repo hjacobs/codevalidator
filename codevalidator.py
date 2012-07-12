@@ -31,21 +31,24 @@ DEFAULT_RULES = [
 ]
 
 DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
+    '*.conf': DEFAULT_RULES,
+    '*.css': DEFAULT_RULES,
+    '*.groovy': DEFAULT_RULES,
+    '*.htm': DEFAULT_RULES,
+    '*.html': DEFAULT_RULES,
     '*.java': DEFAULT_RULES,
+    '*.js': DEFAULT_RULES,
     '*.jsp': DEFAULT_RULES,
-    '*.vm': DEFAULT_RULES,
+    '*.less': DEFAULT_RULES,
+    '*.php': DEFAULT_RULES,
     '*.properties': DEFAULT_RULES,
     '*.py': DEFAULT_RULES + ['pythontidy'],
-    '*.php': DEFAULT_RULES,
     '*.sh': DEFAULT_RULES,
     '*.sql': DEFAULT_RULES,
     '*.sql_diff': DEFAULT_RULES,
-    '*.xml': DEFAULT_RULES + ['xmlfmt'],
-    '*.html': DEFAULT_RULES,
     '*.txt': DEFAULT_RULES,
-    '*.js': DEFAULT_RULES,
-    '*.less': DEFAULT_RULES,
-    '*.css': DEFAULT_RULES,
+    '*.vm': DEFAULT_RULES,
+    '*.xml': DEFAULT_RULES + ['xmlfmt'],
 }}
 
 CONFIG = DEFAULT_CONFIG
