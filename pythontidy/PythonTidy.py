@@ -327,8 +327,8 @@ KEEP_BLANK_LINES = True
 ADD_BLANK_LINES_AROUND_COMMENTS = False
 MAX_SEPS_FUNC_DEF = 7  # 2007 May 24
 MAX_SEPS_FUNC_REF = 7  # 2007 May 24
-MAX_SEPS_SERIES = 7  # 2007 May 24
-MAX_SEPS_DICT = 7  # 2007 May 24
+MAX_SEPS_SERIES = 4  # 2007 May 24
+MAX_SEPS_DICT = 3  # 2007 May 24
 MAX_LINES_BEFORE_SPLIT_LIT = 2
 LEFT_MARGIN = NULL
 LEFTJUST_DOC_STRINGS = False
@@ -442,8 +442,8 @@ ATTR_NAME_SCRIPT = []
 
 if PERSONAL:
     LEFTJUST_DOC_STRINGS = False
-    LOCAL_NAME_SCRIPT.extend([unmangle, camel_case_to_underscore])
-    GLOBAL_NAME_SCRIPT.extend([unmangle, camel_case_to_underscore, all_upper_case])
+    # LOCAL_NAME_SCRIPT.extend([unmangle, camel_case_to_underscore])
+    # GLOBAL_NAME_SCRIPT.extend([unmangle, camel_case_to_underscore, all_upper_case])
     CLASS_NAME_SCRIPT.extend([elide_c, underscore_to_camel_case])
     FUNCTION_NAME_SCRIPT.extend([camel_case_to_underscore])
     FORMAL_PARAM_NAME_SCRIPT.extend([elide_a, camel_case_to_underscore])
@@ -717,7 +717,14 @@ class OutputUnit(object):
                   can_break_after=False):
 
             # 2007 Mar 06
-        self.chunks.append([chunk, tab_set, tab_clear, can_split_str, can_split_after, can_break_after])
+        self.chunks.append([
+            chunk,
+            tab_set,
+            tab_clear,
+            can_split_str,
+            can_split_after,
+            can_break_after,
+        ])
         self.col += len(chunk)
         return self
 
@@ -747,14 +754,35 @@ class OutputUnit(object):
         cumulative_width = ZERO
         chunk_lengths = []
         self.chunks.reverse()
-        for chunk, tab_set, tab_clear, can_split_str, can_split_after, can_break_after in self.chunks:  # 2007 May 01
+        for (  # 2007 May 01
+            chunk,
+            tab_set,
+            tab_clear,
+            can_split_str,
+            can_split_after,
+            can_break_after,
+        ) in self.chunks:
             if can_split_after or can_break_after:
                 cumulative_width = ZERO
             cumulative_width += len(chunk)
-            chunk_lengths.insert(ZERO, [chunk, cumulative_width, tab_set, tab_clear, can_split_str, can_split_after,
-                                 can_break_after])
-        for chunk, cumulative_width, tab_set, tab_clear, can_split_str, can_split_after, can_break_after in \
-            chunk_lengths:  # 2007 May 01
+            chunk_lengths.insert(ZERO, [
+                chunk,
+                cumulative_width,
+                tab_set,
+                tab_clear,
+                can_split_str,
+                can_split_after,
+                can_break_after,
+            ])
+        for (
+            chunk,
+            cumulative_width,
+            tab_set,
+            tab_clear,
+            can_split_str,
+            can_split_after,
+            can_break_after,
+        ) in chunk_lengths:  # 2007 May 01
             if is_split_needed(cumulative_width):
                 if can_split_before:
                     self.line_split()
@@ -910,14 +938,26 @@ class Comments(dict):
                     prev_item = lines.next()
                     yield prev_item
 
-                    prev_token_type, prev_token_string, prev_start, prev_end, prev_line = prev_item
+                    (
+                        prev_token_type,
+                        prev_token_string,
+                        prev_start,
+                        prev_end,
+                        prev_line,
+                    ) = prev_item
                     if prev_token_type in [tokenize.STRING]:
                         on1 = True
                         while True:
                             next_item = lines.next()
                             yield next_item
 
-                            next_token_type, next_token_string, next_start, next_end, next_line = next_item
+                            (
+                                next_token_type,
+                                next_token_string,
+                                next_start,
+                                next_end,
+                                next_line,
+                            ) = next_item
                             if next_token_type in [tokenize.STRING]:
                                 if prev_token_string[-1] == next_token_string[ZERO]:
                                     prev_token_string = prev_token_string[:-1] + next_token_string[1:]
@@ -926,7 +966,13 @@ class Comments(dict):
                                 if on1:
                                     pass
                                 else:
-                                    prev_item = prev_token_type, prev_token_string, prev_start, prev_end, prev_line
+                                    prev_item = (
+                                        prev_token_type,
+                                        prev_token_string,
+                                        prev_start,
+                                        prev_end,
+                                        prev_line,
+                                    )
                                     yield prev_item
                                     break
             except NotImplementedError:
@@ -936,7 +982,13 @@ class Comments(dict):
         self.literal_pool = {}  # 2007 Jan 14
         lines = tokenize.generate_tokens(INPUT.readline)
         lines = merge_concatenated_strings(lines)  # 2010 Sep 08
-        for token_type, token_string, start, end, line in lines:
+        for (
+            token_type,
+            token_string,
+            start,
+            end,
+            line,
+        ) in lines:
             if DEBUG:
                 print token.tok_name[token_type], token_string, start, end, line
             self.max_lineno, scol = start

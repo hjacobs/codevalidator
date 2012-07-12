@@ -22,7 +22,13 @@ NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
 INDENTATION = '    '
 
-DEFAULT_RULES = ['utf8', 'nobom', 'notabs', 'nocr', 'notrailingws']
+DEFAULT_RULES = [
+    'utf8',
+    'nobom',
+    'notabs',
+    'nocr',
+    'notrailingws',
+]
 
 DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.java': DEFAULT_RULES,
@@ -151,8 +157,11 @@ def _fix_xmlfmt(src, dst):
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
     source = StringIO(fd.read())
+    if len(source.getvalue()) < 4:
+        # small or empty files are ignored
+        return True
     formatted = StringIO()
-    PythonTidy.tidy_up(fd, formatted)
+    PythonTidy.tidy_up(source, formatted)
     return source.getvalue() == formatted.getvalue()
 
 
