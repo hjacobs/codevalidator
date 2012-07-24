@@ -28,3 +28,7 @@ Validate and fix a whole directory tree:
 
     ./codevalidator.py -c myconfig.json -rf /path/to/mydirectory
 
+Validate a single PHP file and print detailed error messages (needs PHP_CodeSniffer with PSR standards installed!):
+
+    ./codevalidator.py -v test/test.php
+

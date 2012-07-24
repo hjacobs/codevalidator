@@ -8,10 +8,12 @@ written by Henning Jacobs <henning@jacobs1.de>
 """
 
 import argparse
+import csv
 import fnmatch
 import json
 import os
 import re
+import subprocess
 import sys
 from cStringIO import StringIO
 from collections import defaultdict
@@ -40,7 +42,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.js': DEFAULT_RULES,
     '*.jsp': DEFAULT_RULES,
     '*.less': DEFAULT_RULES,
-    '*.php': DEFAULT_RULES,
+    '*.php': DEFAULT_RULES + ['phpcs'],
     '*.properties': DEFAULT_RULES,
     '*.py': DEFAULT_RULES + ['pythontidy'],
     '*.sh': DEFAULT_RULES,
@@ -49,7 +51,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.txt': DEFAULT_RULES,
     '*.vm': DEFAULT_RULES,
     '*.xml': DEFAULT_RULES + ['xmlfmt'],
-}}
+}, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -172,14 +174,44 @@ def _fix_pythontidy(src, dst):
     PythonTidy.tidy_up(src, dst)
 
 
+@message('is not phpcs (%(standard)s standard) formatted')
+def _validate_phpcs(fd, options):
+    """validate a PHP file to conform to PHP_CodeSniffer standards
+
+    Needs a locally installed phpcs ("pear install PHP_CodeSniffer").
+    Look at https://github.com/klaussilveira/phpcs-psr to get the PSR standard (sniffs)."""
+
+    po = subprocess.Popen('phpcs -n --report=csv --standard=%s --encoding=%s -' % (options['standard'],
+                          options['encoding']), shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+    output, stderr = po.communicate(input=fd.read())
+    reader = csv.DictReader(output.split('\n'), delimiter=',', doublequote=False, escapechar='\\')
+    valid = True
+    for row in reader:
+        valid = False
+        _detail(row['Message'], line=row['Line'], column=row['Column'])
+    return valid
+
 VALIDATION_ERRORS = []
+VALIDATION_DETAILS = []
 
 
 def _error(fname, rule, func, message=None):
     if not message:
         message = func.message
-    print '{0}: {1}'.format(fname, message)
+    print '{0}: {1}'.format(fname, message % CONFIG.get('options', {}).get(rule, {}))
+    if CONFIG['verbose']:
+        for message, line, column in VALIDATION_DETAILS:
+            if line and column:
+                print '  line {0}, col {1}: {2}'.format(line, column, message)
+            else:
+                print '  {0}'.format(message)
+    VALIDATION_DETAILS[:] = []
     VALIDATION_ERRORS.append((fname, rule))
+
+
+def _detail(message, line=None, column=None):
+    VALIDATION_DETAILS.append((message, line, column))
 
 
 def validate_file_with_rules(fname, rules):
@@ -190,8 +222,12 @@ def validate_file_with_rules(fname, rules):
             if not func:
                 print rule, 'does not exist'
                 continue
+            options = CONFIG.get('options', {}).get(rule)
             try:
-                res = func(fd)
+                if options:
+                    res = func(fd, options)
+                else:
+                    res = func(fd)
             except Exception, e:
                 _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
             else:
@@ -243,6 +279,7 @@ def main():
     parser.add_argument('-r', '--recursive', action='store_true', help='process given directories recursively')
     parser.add_argument('-c', '--config', help='use custom configuration file (default: ~/.codevalidatorrc)')
     parser.add_argument('-f', '--fix', action='store_true', help='try to fix validation errors (by reformatting files)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='print more detailed error information')
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
@@ -251,6 +288,7 @@ def main():
         args.config = config_file
     if args.config:
         CONFIG.update(json.load(open(args.config, 'rb')))
+    CONFIG['verbose'] = args.verbose
 
     for f in args.files:
         if args.recursive:
