@@ -51,6 +51,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.txt': DEFAULT_RULES,
     '*.vm': DEFAULT_RULES,
     '*.xml': DEFAULT_RULES + ['xmlfmt'],
+    '*.wsdl': DEFAULT_RULES,
 }, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}}}
 
 CONFIG = DEFAULT_CONFIG
