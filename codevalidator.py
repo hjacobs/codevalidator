@@ -17,7 +17,6 @@ import subprocess
 import sys
 from cStringIO import StringIO
 from collections import defaultdict
-from lxml import etree
 from pythontidy import PythonTidy
 
 NOT_SPACE = re.compile('[^ ]')
@@ -153,6 +152,7 @@ def _validate_xmlfmt(fd):
 
 
 def _fix_xmlfmt(src, dst):
+    from lxml import etree
     parser = etree.XMLParser(resolve_entities=False)
     tree = etree.parse(src, parser)
     indent_xml(tree.getroot())
