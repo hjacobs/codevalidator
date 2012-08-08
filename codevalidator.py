@@ -42,7 +42,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.jsp': DEFAULT_RULES,
     '*.less': DEFAULT_RULES,
     '*.php': DEFAULT_RULES + ['phpcs'],
-    '*.properties': DEFAULT_RULES,
+    '*.properties': DEFAULT_RULES + ['ascii'],
     '*.py': DEFAULT_RULES + ['pythontidy'],
     '*.sh': DEFAULT_RULES,
     '*.sql': DEFAULT_RULES,
@@ -106,6 +106,15 @@ def _fix_nocr(src, dst):
 def _validate_utf8(fd):
     try:
         fd.read().decode('utf-8')
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+@message('is not ASCII encoded')
+def _validate_ascii(fd):
+    try:
+        fd.read().decode('ascii')
     except UnicodeDecodeError:
         return False
     return True
