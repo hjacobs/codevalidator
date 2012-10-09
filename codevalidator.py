@@ -37,6 +37,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.groovy': DEFAULT_RULES,
     '*.htm': DEFAULT_RULES,
     '*.html': DEFAULT_RULES,
+    '*.phtml': DEFAULT_RULES,
     '*.java': DEFAULT_RULES,
     '*.js': DEFAULT_RULES,
     '*.jsp': DEFAULT_RULES,
