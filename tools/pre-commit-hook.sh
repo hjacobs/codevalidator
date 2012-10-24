@@ -18,7 +18,9 @@ tmpnam_prefix="$tmpdir/"
 
 cv_files=""
 for FILE in ${FILES}; do
-    tmpnam_src="${tmpnam_prefix}${FILE//\//.}"
+    tmpnam_src="${tmpnam_prefix}${FILE}"
+    dir=`dirname "$tmpnam_src"`
+    mkdir -p "$dir"
     $SVNLOOK cat -t "$TXN" "$REPOS" "${FILE}" >"${tmpnam_src}"
     cv_files="${cv_files} ${tmpnam_src}"
 done;

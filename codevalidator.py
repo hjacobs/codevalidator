@@ -247,6 +247,9 @@ def validate_file_with_rules(fname, rules):
 
 
 def validate_file(fname):
+    for exclude in CONFIG['exclude_dirs']:
+        if '/%s/' % exclude in fname:
+            return
     for pattern, rules in CONFIG['rules'].items():
         if fnmatch.fnmatch(fname, pattern):
             validate_file_with_rules(fname, rules)
