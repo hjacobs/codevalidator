@@ -18,6 +18,7 @@ import sys
 from cStringIO import StringIO
 from collections import defaultdict
 from pythontidy import PythonTidy
+from xml.etree.ElementTree import ElementTree
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
@@ -50,7 +51,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.sql_diff': DEFAULT_RULES,
     '*.txt': DEFAULT_RULES,
     '*.vm': DEFAULT_RULES,
-    '*.xml': DEFAULT_RULES + ['xmlfmt'],
+    '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
     '*.wsdl': DEFAULT_RULES,
 }, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}}}
 
@@ -159,6 +160,17 @@ def _validate_xmlfmt(fd):
     formatted = StringIO()
     _fix_xmlfmt(source, formatted)
     return source.getvalue() == formatted.getvalue()
+
+
+@message('is not valid XML')
+def _validate_xml(fd):
+    tree = ElementTree()
+    try:
+        tree.parse(fd)
+    except Exception, e:
+        _detail('%s: %s' % (e.__class__.__name__, e))
+        return False
+    return True
 
 
 def _fix_xmlfmt(src, dst):
