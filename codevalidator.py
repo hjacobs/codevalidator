@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from cStringIO import StringIO
 from collections import defaultdict
 from pythontidy import PythonTidy
@@ -44,6 +45,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.jsp': DEFAULT_RULES,
     '*.less': DEFAULT_RULES,
     '*.php': DEFAULT_RULES + ['phpcs'],
+    '*.pp': DEFAULT_RULES + ['puppet'],
     '*.properties': DEFAULT_RULES + ['ascii'],
     '*.py': DEFAULT_RULES + ['pythontidy'],
     '*.sh': DEFAULT_RULES,
@@ -214,6 +216,22 @@ def _validate_phpcs(fd, options):
         valid = False
         _detail(row['Message'], line=row['Line'], column=row['Column'])
     return valid
+
+
+@message('fails puppet parser validation')
+def _validate_puppet(fd):
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(fd.read())
+        f.flush()
+        po = subprocess.Popen('puppet parser validate %s' % (f.name, ), shell=True, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, stderr = po.communicate()
+        retcode = po.poll()
+        valid = True
+        if output or retcode != 0:
+            valid = False
+            _detail('puppet parser exited with %d: %s' % (retcode, output))
+        return valid
 
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
