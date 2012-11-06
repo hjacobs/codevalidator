@@ -34,27 +34,29 @@ DEFAULT_RULES = [
 ]
 
 DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
+    '*.coffee': DEFAULT_RULES,
     '*.conf': DEFAULT_RULES,
     '*.css': DEFAULT_RULES,
     '*.groovy': DEFAULT_RULES,
     '*.htm': DEFAULT_RULES,
     '*.html': DEFAULT_RULES,
-    '*.phtml': DEFAULT_RULES,
     '*.java': DEFAULT_RULES,
     '*.js': DEFAULT_RULES,
     '*.jsp': DEFAULT_RULES,
     '*.less': DEFAULT_RULES,
     '*.php': DEFAULT_RULES + ['phpcs'],
+    '*.phtml': DEFAULT_RULES,
     '*.pp': DEFAULT_RULES + ['puppet'],
     '*.properties': DEFAULT_RULES + ['ascii'],
     '*.py': DEFAULT_RULES + ['pythontidy'],
     '*.sh': DEFAULT_RULES,
     '*.sql': DEFAULT_RULES,
     '*.sql_diff': DEFAULT_RULES,
+    '*.styl': DEFAULT_RULES,
     '*.txt': DEFAULT_RULES,
     '*.vm': DEFAULT_RULES,
-    '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
     '*.wsdl': DEFAULT_RULES,
+    '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
 }, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}}}
 
 CONFIG = DEFAULT_CONFIG
@@ -294,28 +296,32 @@ def validate_directory(path):
             validate_file(os.path.join(root, fname))
 
 
+def fix_file(fname, rules):
+    was_fixed = False
+    with open(fname, 'rb') as fd:
+        dst = fd
+        for rule in rules:
+            func = globals().get('_fix_' + rule)
+            if func:
+                src = dst
+                dst = StringIO()
+                src.seek(0)
+                try:
+                    func(src, dst)
+                    was_fixed = True
+                except Exception, e:
+                    print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
+    if was_fixed:
+        with open(fname, 'wb') as fd:
+            fd.write(dst.getvalue())
+
+
 def fix_files():
     rules_by_file = defaultdict(list)
     for fname, rule in VALIDATION_ERRORS:
         rules_by_file[fname].append(rule)
     for fname, rules in rules_by_file.items():
-        was_fixed = False
-        with open(fname, 'rb') as fd:
-            dst = fd
-            for rule in rules:
-                func = globals().get('_fix_' + rule)
-                if func:
-                    src = dst
-                    dst = StringIO()
-                    src.seek(0)
-                    try:
-                        func(src, dst)
-                        was_fixed = True
-                    except Exception, e:
-                        print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
-        if was_fixed:
-            with open(fname, 'wb') as fd:
-                fd.write(dst.getvalue())
+        fix_file(fname, rules)
 
 
 def main():
@@ -323,6 +329,7 @@ def main():
     parser.add_argument('-r', '--recursive', action='store_true', help='process given directories recursively')
     parser.add_argument('-c', '--config', help='use custom configuration file (default: ~/.codevalidatorrc)')
     parser.add_argument('-f', '--fix', action='store_true', help='try to fix validation errors (by reformatting files)')
+    parser.add_argument('-a', '--apply', metavar='RULE', action='append', help='apply the given rule(s)')
     parser.add_argument('-v', '--verbose', action='store_true', help='print more detailed error information')
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
@@ -337,6 +344,8 @@ def main():
     for f in args.files:
         if args.recursive:
             validate_directory(f)
+        elif args.apply:
+            fix_file(f, args.apply)
         else:
             validate_file(f)
     if VALIDATION_ERRORS:
