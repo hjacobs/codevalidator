@@ -96,7 +96,7 @@ def _validate_notabs(fd):
 
 
 def _fix_notabs(src, dst):
-    dst.write(src.read().replace('\t', '   '))
+    dst.write(src.read().replace('\t', ' ' * 4))
 
 
 @message('contains carriage return (CR)')
