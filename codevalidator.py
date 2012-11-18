@@ -239,6 +239,7 @@ def _validate_puppet(fd):
 
 @message('has incomplete Maven POM description')
 def _validate_pomdesc(fd):
+    """check Maven POM for title, description and organization"""
     NS = '{http://maven.apache.org/POM/4.0.0}'
     PROJECT_NAME_REGEX = re.compile(r'^[a-z][a-z0-9-]*$')
     tree = ElementTree()
