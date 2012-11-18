@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.vm': DEFAULT_RULES,
     '*.wsdl': DEFAULT_RULES,
     '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
+    '*pom.xml': ['pomdesc'],
 }, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}}}
 
 CONFIG = DEFAULT_CONFIG
@@ -234,6 +235,40 @@ def _validate_puppet(fd):
             valid = False
             _detail('puppet parser exited with %d: %s' % (retcode, output))
         return valid
+
+
+@message('has incomplete Maven POM description')
+def _validate_pomdesc(fd):
+    NS = '{http://maven.apache.org/POM/4.0.0}'
+    PROJECT_NAME_REGEX = re.compile(r'^[a-z][a-z0-9-]*$')
+    tree = ElementTree()
+    try:
+        elem = tree.parse(fd)
+    except Exception, e:
+        _detail('%s: %s' % (e.__class__.__name__, e))
+        return False
+    # group = elem.findtext(NS + 'groupId')
+    name = elem.findtext(NS + 'artifactId')
+    # ver = elem.findtext(NS + 'version')
+    title = elem.findtext(NS + 'name')
+    if title == '${project.artifactId}':
+        title = name
+    description = elem.findtext(NS + 'description')
+    organization = elem.findtext(NS + 'organization/' + NS + 'name')
+
+    if not name or not PROJECT_NAME_REGEX.match(name):
+        _detail('has invalid name (does not match %s)' % PROJECT_NAME_REGEX.pattern)
+    if not title:
+        _detail('is missing title (<name>...</name>)')
+    elif title.lower() == name.lower():
+        _detail('has same title as name/artifactId')
+    if not description:
+        _detail('is missing description (<description>..</description>)')
+    elif len(description.split()) < 3:
+        _detail('has a too short description')
+    if not organization:
+        _detail('is missing organization (<organization><name>..</name></organization>)')
+    return not VALIDATION_DETAILS
 
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
