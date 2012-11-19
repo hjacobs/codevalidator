@@ -234,17 +234,20 @@ def _validate_phpcs(fd, options):
 
 @message('fails puppet parser validation')
 def _validate_puppet(fd):
+    _env = {}
+    _env.update(os.environ)
+    _env['HOME'] = '/tmp'
     with tempfile.NamedTemporaryFile() as f:
         f.write(fd.read())
         f.flush()
-        po = subprocess.Popen('puppet parser validate %s' % (f.name, ), shell=True, stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cmd = 'puppet parser validate --color=false --confdir=/tmp --vardir=/tmp %s' % (f.name, )
+        po = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_env)
         output, stderr = po.communicate()
         retcode = po.poll()
         valid = True
         if output or retcode != 0:
             valid = False
-            _detail('puppet parser exited with %d: %s' % (retcode, output))
+            _detail('puppet parser exited with %d: %s' % (retcode, re.sub('[^A-Za-z0-9 .:-]', '', output)))
         return valid
 
 
