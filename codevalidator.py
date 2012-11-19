@@ -42,6 +42,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.html': DEFAULT_RULES,
     '*.java': DEFAULT_RULES,
     '*.js': DEFAULT_RULES,
+    '*.json': DEFAULT_RULES + ['json'],
     '*.jsp': DEFAULT_RULES,
     '*.less': DEFAULT_RULES,
     '*.php': DEFAULT_RULES + ['phpcs'],
@@ -187,6 +188,16 @@ def _fix_xmlfmt(src, dst):
     dst.write('\n')
 
 
+@message('is not valid JSON')
+def _validate_json(fd):
+    try:
+        json.load(fd)
+    except Exception, e:
+        _detail('%s: %s' % (e.__class__.__name__, e))
+        return False
+    return True
+
+
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
     source = StringIO(fd.read())
@@ -240,6 +251,7 @@ def _validate_puppet(fd):
 @message('has incomplete Maven POM description')
 def _validate_pomdesc(fd):
     """check Maven POM for title, description and organization"""
+
     NS = '{http://maven.apache.org/POM/4.0.0}'
     PROJECT_NAME_REGEX = re.compile(r'^[a-z][a-z0-9-]*$')
     tree = ElementTree()
