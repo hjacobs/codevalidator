@@ -34,7 +34,7 @@ DEFAULT_RULES = [
 ]
 
 DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
-    '*.coffee': DEFAULT_RULES,
+    '*.coffee': DEFAULT_RULES + ['coffeelint'],
     '*.conf': DEFAULT_RULES,
     '*.css': DEFAULT_RULES,
     '*.groovy': DEFAULT_RULES,
@@ -232,6 +232,30 @@ def _validate_phpcs(fd, options):
     return valid
 
 
+@message('fails coffeelint validation')
+def _validate_coffeelint(fd, options=None):
+    """validate a CoffeeScript file
+
+    Needs a locally installed coffeelint ("npm install -g coffeelint").
+    """
+
+    cfgfile = os.path.join(os.path.dirname(__file__), 'config/coffeelint.json')
+    po = subprocess.Popen('coffeelint --csv -s -f %s' % cfgfile, shell=True, stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = po.communicate(input=fd.read())
+    valid = True
+    if stderr:
+        valid = False
+        _detail(stderr)
+    for row in output.split('\n'):
+        if row:
+            valid = False
+            cols = row.split(',')
+            if len(cols) > 3:
+                _detail(cols[3], line=cols[1])
+    return valid
+
+
 @message('fails puppet parser validation')
 def _validate_puppet(fd):
     _env = {}
@@ -298,6 +322,8 @@ def _error(fname, rule, func, message=None):
         for message, line, column in VALIDATION_DETAILS:
             if line and column:
                 print '  line {0}, col {1}: {2}'.format(line, column, message)
+            elif line:
+                print '  line {0}: {1}'.format(line, message)
             else:
                 print '  {0}'.format(message)
     VALIDATION_DETAILS[:] = []
