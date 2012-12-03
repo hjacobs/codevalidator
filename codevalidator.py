@@ -63,6 +63,11 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
 
 CONFIG = DEFAULT_CONFIG
 
+# base directory where we can find our config folder
+# NOTE: to support symlinking codevalidator.py into /usr/local/bin/
+# we use realpath to resolve the symlink back to our base directory
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
 
 def indent_xml(elem, level=0):
     """xmlindent from http://infix.se/2007/02/06/gentlemen-indent-your-xml"""
@@ -239,7 +244,7 @@ def _validate_coffeelint(fd, options=None):
     Needs a locally installed coffeelint ("npm install -g coffeelint").
     """
 
-    cfgfile = os.path.join(os.path.dirname(__file__), 'config/coffeelint.json')
+    cfgfile = os.path.join(BASE_DIR, 'config/coffeelint.json')
     po = subprocess.Popen('coffeelint --csv -s -f %s' % cfgfile, shell=True, stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, stderr = po.communicate(input=fd.read())
