@@ -266,6 +266,7 @@ def _validate_puppet(fd):
     _env = {}
     _env.update(os.environ)
     _env['HOME'] = '/tmp'
+    _env['PATH'] = '/bin:/sbin:/usr/bin:/usr/sbin'
     with tempfile.NamedTemporaryFile() as f:
         f.write(fd.read())
         f.flush()
