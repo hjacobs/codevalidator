@@ -97,6 +97,11 @@ def message(msg):
     return wrap
 
 
+@message('has invalid file path (file name or extension is not allowed)')
+def _validate_invalidpath(fd):
+    return False
+
+
 @message('contains tabs')
 def _validate_notabs(fd):
     return '\t' not in fd.read()
