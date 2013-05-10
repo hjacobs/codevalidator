@@ -219,32 +219,38 @@ def _validate_pythontidy(fd):
     formatted = StringIO()
     PythonTidy.tidy_up(source, formatted)
     return source.getvalue() == formatted.getvalue()
-    
+
+
 @message('is not pep8 formatted')
 def _validate_pep8(fd):
-    pep8style = pep8.StyleGuide(max_line_length=120) #add config file with tempfile
+    max_line_length = CONFIG["max_line_length"]["value"] if "max_line_length" in CONFIG \
+        else 120
+    pep8style = pep8.StyleGuide(max_line_length=max_line_length)
     check = pep8style.input_file(fd.name)
     return check == 0
 
 
 def _fix_pythontidy(src, dst):
     PythonTidy.tidy_up(src, dst)
-    
+
+
 def _fix_pep8(src, dst):
     if type(src) is file:
         source = src.read()
     else:
         source = src.getvalue()
+
     class options():
         select = "e501"
         ignore = "N806"
-        pep8_passes = 2
-        max_line_length = 120
+        pep8_passes = 5
+        max_line_length = CONFIG["max_line_length"]["value"] if "max_line_length" in CONFIG \
+            else 120
         verbose = False
         aggressive = True
-    fixed = autopep8.fix_string(source, options = options)
-    dst.write(fixed)
 
+    fixed = autopep8.fix_string(source, options=options)
+    dst.write(fixed)
 
 
 @message('is not phpcs (%(standard)s standard) formatted')
