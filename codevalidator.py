@@ -19,6 +19,8 @@ import tempfile
 from cStringIO import StringIO
 from collections import defaultdict
 from pythontidy import PythonTidy
+import pep8
+import autopep8
 from xml.etree.ElementTree import ElementTree
 
 NOT_SPACE = re.compile('[^ ]')
@@ -49,7 +51,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.phtml': DEFAULT_RULES,
     '*.pp': DEFAULT_RULES + ['puppet'],
     '*.properties': DEFAULT_RULES + ['ascii'],
-    '*.py': DEFAULT_RULES + ['pythontidy'],
+    '*.py': DEFAULT_RULES + ['pep8'],
     '*.sh': DEFAULT_RULES,
     '*.sql': DEFAULT_RULES,
     '*.sql_diff': DEFAULT_RULES,
@@ -217,10 +219,32 @@ def _validate_pythontidy(fd):
     formatted = StringIO()
     PythonTidy.tidy_up(source, formatted)
     return source.getvalue() == formatted.getvalue()
+    
+@message('is not pep8 formatted')
+def _validate_pep8(fd):
+    pep8style = pep8.StyleGuide(max_line_length=120) #add config file with tempfile
+    check = pep8style.input_file(fd.name)
+    return check == 0
 
 
 def _fix_pythontidy(src, dst):
     PythonTidy.tidy_up(src, dst)
+    
+def _fix_pep8(src, dst):
+    if type(src) is file:
+        source = src.read()
+    else:
+        source = src.getvalue()
+    class options():
+        select = "e501"
+        ignore = "N806"
+        pep8_passes = 2
+        max_line_length = 120
+        verbose = False
+        aggressive = True
+    fixed = autopep8.fix_string(source, options = options)
+    dst.write(fixed)
+
 
 
 @message('is not phpcs (%(standard)s standard) formatted')
