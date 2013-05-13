@@ -457,7 +457,7 @@ def main():
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
-    config_file = os.path.expanduser('~/.codevalidatorrc..')
+    config_file = os.path.expanduser('~/.codevalidatorrc')
     if os.path.isfile(config_file) and not args.config:
         args.config = config_file
     if args.config:
