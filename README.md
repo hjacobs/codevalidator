@@ -8,6 +8,8 @@ Requirements
 
 * python 2.7+
 * lxml
+* pep8
+* autopep8
 
 Getting Started
 ---------------
