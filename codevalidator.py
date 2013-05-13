@@ -49,7 +49,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.phtml': DEFAULT_RULES,
     '*.pp': DEFAULT_RULES + ['puppet'],
     '*.properties': DEFAULT_RULES + ['ascii'],
-    '*.py': DEFAULT_RULES + ['pythontidy'],
+    '*.py': DEFAULT_RULES + ['pep8'],
     '*.sh': DEFAULT_RULES,
     '*.sql': DEFAULT_RULES,
     '*.sql_diff': DEFAULT_RULES,
@@ -59,7 +59,11 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
     '*.wsdl': DEFAULT_RULES,
     '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
     '*pom.xml': ['pomdesc'],
-}, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}}}
+}, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'},
+               'pep8': {"max_line_length": 120,
+                        "ignore": "N806",
+                        "passes": 5,
+                        "select": "e501"}}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -219,8 +223,35 @@ def _validate_pythontidy(fd):
     return source.getvalue() == formatted.getvalue()
 
 
+@message('is not pep8 formatted')
+def _validate_pep8(fd, options):
+    import pep8
+    pep8style = pep8.StyleGuide(max_line_length=options["max_line_length"])
+    check = pep8style.input_file(fd.name)
+    return check == 0
+
+
 def _fix_pythontidy(src, dst):
     PythonTidy.tidy_up(src, dst)
+
+
+def _fix_pep8(src, dst, options):
+    import autopep8
+    if type(src) is file:
+        source = src.read()
+    else:
+        source = src.getvalue()
+
+    class OptionsClass():
+        select = options["select"]
+        ignore = options["ignore"]
+        pep8_passes = options["passes"]
+        max_line_length = options["max_line_length"]
+        verbose = False
+        aggressive = True
+
+    fixed = autopep8.fix_string(source, options=OptionsClass)
+    dst.write(fixed)
 
 
 @message('is not phpcs (%(standard)s standard) formatted')
@@ -391,11 +422,15 @@ def fix_file(fname, rules):
         for rule in rules:
             func = globals().get('_fix_' + rule)
             if func:
+                options = CONFIG.get('options', {}).get(rule)
                 src = dst
                 dst = StringIO()
                 src.seek(0)
                 try:
-                    func(src, dst)
+                    if options:
+                        func(src, dst, options)
+                    else:
+                        func(src, dst)
                     was_fixed = True
                 except Exception, e:
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
