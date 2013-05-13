@@ -19,8 +19,6 @@ import tempfile
 from cStringIO import StringIO
 from collections import defaultdict
 from pythontidy import PythonTidy
-import pep8
-import autopep8
 from xml.etree.ElementTree import ElementTree
 
 NOT_SPACE = re.compile('[^ ]')
@@ -227,6 +225,7 @@ def _validate_pythontidy(fd):
 
 @message('is not pep8 formatted')
 def _validate_pep8(fd, options):
+    import pep8
     pep8style = pep8.StyleGuide(max_line_length=options["max_line_length"])
     check = pep8style.input_file(fd.name)
     return check == 0
@@ -237,6 +236,7 @@ def _fix_pythontidy(src, dst):
 
 
 def _fix_pep8(src, dst, options):
+    import autopep8
     if type(src) is file:
         source = src.read()
     else:
