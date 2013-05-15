@@ -33,37 +33,40 @@ DEFAULT_RULES = [
     'notrailingws',
 ]
 
-DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'], 'rules': {
-    '*.coffee': DEFAULT_RULES + ['coffeelint'],
-    '*.conf': DEFAULT_RULES,
-    '*.css': DEFAULT_RULES,
-    '*.groovy': DEFAULT_RULES,
-    '*.htm': DEFAULT_RULES,
-    '*.html': DEFAULT_RULES,
-    '*.java': DEFAULT_RULES,
-    '*.js': DEFAULT_RULES,
-    '*.json': DEFAULT_RULES + ['json'],
-    '*.jsp': DEFAULT_RULES,
-    '*.less': DEFAULT_RULES,
-    '*.php': DEFAULT_RULES + ['phpcs'],
-    '*.phtml': DEFAULT_RULES,
-    '*.pp': DEFAULT_RULES + ['puppet'],
-    '*.properties': DEFAULT_RULES + ['ascii'],
-    '*.py': DEFAULT_RULES + ['pep8'],
-    '*.sh': DEFAULT_RULES,
-    '*.sql': DEFAULT_RULES,
-    '*.sql_diff': DEFAULT_RULES,
-    '*.styl': DEFAULT_RULES,
-    '*.txt': DEFAULT_RULES,
-    '*.vm': DEFAULT_RULES,
-    '*.wsdl': DEFAULT_RULES,
-    '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
-    '*pom.xml': ['pomdesc'],
-}, 'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'},
-               'pep8': {"max_line_length": 120,
-                        "ignore": "N806",
-                        "passes": 5,
-                        "select": "e501"}}}
+DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
+                  'rules': {'*.coffee': DEFAULT_RULES + ['coffeelint'],
+                            '*.conf': DEFAULT_RULES,
+                            '*.css': DEFAULT_RULES,
+                            '*.groovy': DEFAULT_RULES,
+                            '*.htm': DEFAULT_RULES,
+                            '*.html': DEFAULT_RULES,
+                            '*.java': DEFAULT_RULES,
+                            '*.js': DEFAULT_RULES,
+                            '*.json': DEFAULT_RULES + ['json'],
+                            '*.jsp': DEFAULT_RULES,
+                            '*.less': DEFAULT_RULES,
+                            '*.php': DEFAULT_RULES + ['phpcs'],
+                            '*.phtml': DEFAULT_RULES,
+                            '*.pp': DEFAULT_RULES + ['puppet'],
+                            '*.properties': DEFAULT_RULES + ['ascii'],
+                            '*.py': DEFAULT_RULES + ['pep8'],
+                            '*.sh': DEFAULT_RULES,
+                            '*.sql': DEFAULT_RULES,
+                            '*.sql_diff': DEFAULT_RULES,
+                            '*.styl': DEFAULT_RULES,
+                            '*.txt': DEFAULT_RULES,
+                            '*.vm': DEFAULT_RULES,
+                            '*.wsdl': DEFAULT_RULES,
+                            '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
+                            '*pom.xml': ['pomdesc'],
+                            },
+                  'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'},
+                              'pep8': {"max_line_length": 120,
+                                       "ignore": "N806",
+                                       "passes": 5,
+                                       "select": "e501"},
+                              },
+                  'dir_rules': {'db_diffs': ['sql_diff_dir']}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -352,6 +355,11 @@ def _validate_pomdesc(fd):
         _detail('is missing organization (<organization><name>..</name></organization>)')
     return not VALIDATION_DETAILS
 
+
+@message('dbdiffs and migration scripts should use .sql_diff or .py extension')
+def _validate_sql_diff_dir(fname, options=None):
+    return fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")
+
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
 
@@ -374,6 +382,28 @@ def _error(fname, rule, func, message=None):
 
 def _detail(message, line=None, column=None):
     VALIDATION_DETAILS.append((message, line, column))
+
+
+def validate_file_dir_rules(fname):
+    fullpath = os.path.abspath(fname)
+    dirs = get_dirs(fullpath)
+    dirrules = sum([CONFIG['dir_rules'][rule] for rule in CONFIG['dir_rules'] if rule in dirs], [])
+    for rule in dirrules:
+        func = globals().get('_validate_' + rule)
+        if not func:
+            print rule, 'does not exist'
+            continue
+        options = CONFIG.get('options', {}).get(rule)
+        try:
+            if options:
+                res = func(fname, options)
+            else:
+                res = func(fname)
+        except Exception, e:
+            _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
+        else:
+            if not res:
+                    _error(fname, rule, func)
 
 
 def validate_file_with_rules(fname, rules):
@@ -401,6 +431,7 @@ def validate_file(fname):
     for exclude in CONFIG['exclude_dirs']:
         if '/%s/' % exclude in fname:
             return
+    validate_file_dir_rules(fname)
     for pattern, rules in CONFIG['rules'].items():
         if fnmatch.fnmatch(fname, pattern):
             validate_file_with_rules(fname, rules)
@@ -445,6 +476,14 @@ def fix_files():
         rules_by_file[fname].append(rule)
     for fname, rules in rules_by_file.items():
         fix_file(fname, rules)
+
+
+def get_dirs(path):
+    head, tail = os.path.split(path)
+    if tail:
+        return get_dirs(head) + [tail]
+    else:
+        return []
 
 
 def main():
