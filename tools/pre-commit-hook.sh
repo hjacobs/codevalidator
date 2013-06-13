@@ -7,7 +7,7 @@ TXN="$2"
 
 SVNLOOK=/usr/bin/svnlook
 
-FILES=`$SVNLOOK changed -t "$TXN" "$REPOS" | grep -E '^(U|A)' | cut -b5- `
+FILES=`$SVNLOOK changed -t "$TXN" "$REPOS" | grep -E '^(U|A)' | cut -b5- | grep -vE '/$'`
 
 if [ -z "${FILES}" ]; then
     exit 0
@@ -31,7 +31,7 @@ fi
 
 if (! codevalidator.py -v ${cv_files} >"${tmpnam_prefix}messages") then
     echo "codevalidator.py found validation errors:" 1>&2
-    cat "${tmpnam_prefix}messages" 1>&2
+    cat "${tmpnam_prefix}messages" | sed "s,${tmpnam_prefix},," 1>&2
     rm -rf $tmpdir
     exit 2
 fi
