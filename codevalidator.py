@@ -67,7 +67,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
                                        "passes": 5,
                                        "select": "e501"},
                               },
-                  'dir_rules': {'db_diffs': ['sql_diff_dir']}}
+                  'dir_rules': {'db_diffs': ['sql_diff_dir_ext', 'sql_diff_basename']}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -386,8 +386,16 @@ def _validate_pomdesc(fd):
 
 
 @message('dbdiffs and migration scripts should use .sql_diff or .py extension')
-def _validate_sql_diff_dir(fname, options=None):
+def _validate_sql_diff_dir_ext(fname, options=None):
     return fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")
+
+@message('Patch should be located in directory with the name of the jira ticket')
+def _validate_sql_diff_basename(fname, options=None):
+    return "hey"
+    re_ticket = re.compile( "^[A-Z]+-[0-9]+$" )
+    dirs = get_dirs(fname)
+    basedir = dirs[-2]
+    return re_ticket.match(basedir)
 
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
@@ -432,7 +440,9 @@ def validate_file_dir_rules(fname):
             _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
         else:
             if not res:
-                    _error(fname, rule, func)
+                _error(fname, rule, func)
+            elif type(res) == str:
+                _error(fname, rule, func, res)
 
 
 def validate_file_with_rules(fname, rules):
@@ -454,6 +464,8 @@ def validate_file_with_rules(fname, rules):
             else:
                 if not res:
                     _error(fname, rule, func)
+                elif type(res) == str:
+                    _error(fname, rule, func, res)
 
 
 def validate_file(fname):
