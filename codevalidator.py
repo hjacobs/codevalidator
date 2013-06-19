@@ -20,6 +20,7 @@ from cStringIO import StringIO
 from collections import defaultdict
 from pythontidy import PythonTidy
 from xml.etree.ElementTree import ElementTree
+from tempfile import NamedTemporaryFile
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
@@ -40,7 +41,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
                             '*.groovy': DEFAULT_RULES,
                             '*.htm': DEFAULT_RULES,
                             '*.html': DEFAULT_RULES,
-                            '*.java': DEFAULT_RULES,
+                            '*.java': DEFAULT_RULES+ ['jalopy'],
                             '*.js': DEFAULT_RULES,
                             '*.json': DEFAULT_RULES + ['json'],
                             '*.jsp': DEFAULT_RULES,
@@ -232,6 +233,34 @@ def _validate_pep8(fd, options):
     pep8style = pep8.StyleGuide(max_line_length=options["max_line_length"])
     check = pep8style.input_file(fd.name)
     return check == 0
+
+def __jalopy(original, options):
+    jalopy_config=options.get('jalopy-config', '/opt/jalopy/Zalando_Jalopy.xml')
+    java_bin = options.get('java_bin', '/usr/bin/java')
+
+    f = NamedTemporaryFile(suffix=".java", delete=False)
+    f.write(original)
+    f.flush()
+    jalopy = [java_bin, '-classpath', '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar','Jalopy']
+    config = ["--convention", jalopy_config]
+    cmd = jalopy + config + [f.name]
+    j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    j.communicate()
+    f.seek(0)
+    result = f.read()
+    return result
+
+@message('is not Jalopy formatted')
+def _validate_jalopy(fd, options = {}):
+    original = fd.read()
+    result = __jalopy(original, options)
+    return original == result
+
+
+def _fix_jalopy(src, dst, options = {}):
+    original = src.read()
+    result = __jalopy(original, options)
+    dst.write(result)
 
 
 def _fix_pythontidy(src, dst):
