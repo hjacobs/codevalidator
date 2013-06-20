@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -34,41 +34,43 @@ DEFAULT_RULES = [
     'notrailingws',
 ]
 
-DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
-                  'rules': {'*.coffee': DEFAULT_RULES + ['coffeelint'],
-                            '*.conf': DEFAULT_RULES,
-                            '*.css': DEFAULT_RULES,
-                            '*.groovy': DEFAULT_RULES,
-                            '*.htm': DEFAULT_RULES,
-                            '*.html': DEFAULT_RULES,
-                            '*.java': DEFAULT_RULES+ ['jalopy'],
-                            '*.js': DEFAULT_RULES,
-                            '*.json': DEFAULT_RULES + ['json'],
-                            '*.jsp': DEFAULT_RULES,
-                            '*.less': DEFAULT_RULES,
-                            '*.php': DEFAULT_RULES + ['phpcs'],
-                            '*.phtml': DEFAULT_RULES,
-                            '*.pp': DEFAULT_RULES + ['puppet'],
-                            '*.properties': DEFAULT_RULES + ['ascii'],
-                            '*.py': DEFAULT_RULES + ['pep8'],
-                            '*.sh': DEFAULT_RULES,
-                            '*.sql': DEFAULT_RULES,
-                            '*.sql_diff': DEFAULT_RULES,
-                            '*.styl': DEFAULT_RULES,
-                            '*.txt': DEFAULT_RULES,
-                            '*.vm': DEFAULT_RULES,
-                            '*.wsdl': DEFAULT_RULES,
-                            '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
-                            '*pom.xml': ['pomdesc'],
-                            },
-                  'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'},
-                              'pep8': {"max_line_length": 120,
-                                       "ignore": "N806",
-                                       "passes": 5,
-                                       "select": "e501"},
-                              },
-                  'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'],
-                                'database': ['database_dir']}}
+DEFAULT_CONFIG = {
+    'exclude_dirs': ['.svn', '.git'],
+    'rules': {
+        '*.coffee': DEFAULT_RULES + ['coffeelint'],
+        '*.conf': DEFAULT_RULES,
+        '*.css': DEFAULT_RULES,
+        '*.groovy': DEFAULT_RULES,
+        '*.htm': DEFAULT_RULES,
+        '*.html': DEFAULT_RULES,
+        '*.java': DEFAULT_RULES + ['jalopy'],
+        '*.js': DEFAULT_RULES,
+        '*.json': DEFAULT_RULES + ['json'],
+        '*.jsp': DEFAULT_RULES,
+        '*.less': DEFAULT_RULES,
+        '*.php': DEFAULT_RULES + ['phpcs'],
+        '*.phtml': DEFAULT_RULES,
+        '*.pp': DEFAULT_RULES + ['puppet'],
+        '*.properties': DEFAULT_RULES + ['ascii'],
+        '*.py': DEFAULT_RULES + ['pep8'],
+        '*.sh': DEFAULT_RULES,
+        '*.sql': DEFAULT_RULES,
+        '*.sql_diff': DEFAULT_RULES,
+        '*.styl': DEFAULT_RULES,
+        '*.txt': DEFAULT_RULES,
+        '*.vm': DEFAULT_RULES,
+        '*.wsdl': DEFAULT_RULES,
+        '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
+        '*pom.xml': ['pomdesc'],
+    },
+    'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}, 'pep8': {
+        'max_line_length': 120,
+        'ignore': 'N806',
+        'passes': 5,
+        'select': 'e501',
+    }, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
+    'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'], 'database': ['database_dir']},
+}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -76,6 +78,15 @@ CONFIG = DEFAULT_CONFIG
 # NOTE: to support symlinking codevalidator.py into /usr/local/bin/
 # we use realpath to resolve the symlink back to our base directory
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
+
+class ConfigurationError(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return '%s: %s' % (self.__class__.__name__, self.msg)
 
 
 def indent_xml(elem, level=0):
@@ -231,34 +242,42 @@ def _validate_pythontidy(fd):
 @message('is not pep8 formatted')
 def _validate_pep8(fd, options):
     import pep8
-    pep8style = pep8.StyleGuide(max_line_length=options["max_line_length"])
+    pep8style = pep8.StyleGuide(max_line_length=options['max_line_length'])
     check = pep8style.input_file(fd.name)
     return check == 0
 
-def __jalopy(original, options):
-    jalopy_config=options.get('jalopy-config', '/opt/jalopy/Zalando_Jalopy.xml')
-    java_bin = options.get('java_bin', '/usr/bin/java')
 
-    f = NamedTemporaryFile(suffix=".java", delete=False)
-    f.write(original)
-    f.flush()
-    jalopy = [java_bin, '-classpath', '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar','Jalopy']
-    config = ["--convention", jalopy_config]
-    cmd = jalopy + config + [f.name]
-    j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    j.communicate()
-    f.seek(0)
-    result = f.read()
+def __jalopy(original, options):
+    jalopy_config = options.get('config')
+    java_bin = options.get('java_bin', '/usr/bin/java')
+    classpath = options.get('classpath')
+
+    if not classpath:
+        raise ConfigurationError('Jalopy classpath not set')
+
+    with NamedTemporaryFile(suffix='.java', delete=False) as f:
+        f.write(original)
+        f.flush()
+        jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
+        config = (['--convention', jalopy_config] if jalopy_config else [])
+        cmd = jalopy + config + [f.name]
+        j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = j.communicate()
+        if stderr or 'ERROR' in stdout:
+            print stdout, stderr
+        f.seek(0)
+        result = f.read()
     return result
 
+
 @message('is not Jalopy formatted')
-def _validate_jalopy(fd, options = {}):
+def _validate_jalopy(fd, options={}):
     original = fd.read()
     result = __jalopy(original, options)
     return original == result
 
 
-def _fix_jalopy(src, dst, options = {}):
+def _fix_jalopy(src, dst, options={}):
     original = src.read()
     result = __jalopy(original, options)
     dst.write(result)
@@ -275,11 +294,12 @@ def _fix_pep8(src, dst, options):
     else:
         source = src.getvalue()
 
-    class OptionsClass():
-        select = options["select"]
-        ignore = options["ignore"]
-        pep8_passes = options["passes"]
-        max_line_length = options["max_line_length"]
+    class OptionsClass:
+
+        select = options['select']
+        ignore = options['ignore']
+        pep8_passes = options['passes']
+        max_line_length = options['max_line_length']
         verbose = False
         aggressive = True
 
@@ -386,68 +406,73 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message("contains syntax errors")
+@message('contains syntax errors')
 def _validate_database_dir(fname, options={}):
-    if "database/lounge" in fname or not fnmatch.fnmatch(fname, "*.sql"):
+    if 'database/lounge' in fname or not fnmatch.fnmatch(fname, '*.sql'):
         return True
     pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParser')
 
     try:
-        return_code = subprocess.call([pgsqlparser_bin,'-q', '-c', '-i', fname])
+        return_code = subprocess.call([
+            pgsqlparser_bin,
+            '-q',
+            '-c',
+            '-i',
+            fname,
+        ])
         return return_code == 0
     except:
         return False
 
+
 def _validate_sql_diff_dir(fname, options=None):
-    if not (fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")):
+    if not (fnmatch.fnmatch(fname, '*.sql_diff') or fnmatch.fnmatch(fname, '*.py')):
         return 'dbdiffs and migration scripts should use .sql_diff or .py extension'
-    
-    re_ticket = re.compile( "^[A-Z]+-[0-9]+" )
-    
-    
+
     dirs = get_dirs(fname)
     basedir = dirs[-2]
     filename = dirs[-1]
-    
-    if not re.match( "^[A-Z]+-[0-9]+", basedir):
+
+    if not re.match('^[A-Z]+-[0-9]+', basedir):
         return 'Patch should be located in directory with the name of the jira ticket'
-    
+
     if not filename.startswith(basedir):
         return 'Filename should start with the parent directory name'
-    
+
     return True
+
 
 def _validate_sql_diff_sql(fname, options=None):
     dirs = get_dirs(fname)
     filename = dirs[-1]
-    
-    if fname.endswith(".py"):
+
+    if fname.endswith('.py'):
         return True
-    
+
     sql = open(fname).read()
     if not re.search('set[ \t]+role[ \t]+to[ \t]+zalando(_admin)?\s*', sql, re.IGNORECASE):
         return 'set role to zalando; must be present in db diff'
-    
-    
+
     if re.match('^[ \t]*\\\\cd[ \t]+:', sql, re.IGNORECASE):
         return "\cd : is not allowed in db diffs anymore"
-    
-    if fnmatch.fnmatch(filename, "*rollback*"):
-        if not fnmatch.fnmatch(fname, "*.rollback.sql_diff"):
-            return "rollback script should have .rollback.sql_diff extension"
-        patch_name = filename.replace(".rollback.sql_diff","")
+
+    if fnmatch.fnmatch(filename, '*rollback*'):
+        if not fnmatch.fnmatch(fname, '*.rollback.sql_diff'):
+            return 'rollback script should have .rollback.sql_diff extension'
+        patch_name = filename.replace('.rollback.sql_diff', '')
         re_patch_name = re.escape(patch_name)
         pattern = 'SELECT[ \t]+_v\.unregister_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
         if not re.search(pattern, sql, re.IGNORECASE):
-            return "unregister patch not found or patch name does not match with filename"
+            return 'unregister patch not found or patch name does not match with filename'
     else:
-        patch_name = filename.replace(".sql_diff","")
+        patch_name = filename.replace('.sql_diff', '')
         re_patch_name = re.escape(patch_name)
         pattern = 'SELECT[ \t]+_v\.register_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
         if not re.search(pattern, sql, re.IGNORECASE):
-            return "register patch not found or patch name does not match with filename"
-    
+            return 'register patch not found or patch name does not match with filename'
+
     return True
+
 
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
