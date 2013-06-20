@@ -7,6 +7,11 @@ Simple source code validator with file reformatting option (remove trailing WS, 
 written by Henning Jacobs <henning@jacobs1.de>
 """
 
+from cStringIO import StringIO
+from collections import defaultdict
+from pythontidy import PythonTidy
+from tempfile import NamedTemporaryFile
+from xml.etree.ElementTree import ElementTree
 import argparse
 import csv
 import fnmatch
@@ -16,11 +21,6 @@ import re
 import subprocess
 import sys
 import tempfile
-from cStringIO import StringIO
-from collections import defaultdict
-from pythontidy import PythonTidy
-from xml.etree.ElementTree import ElementTree
-from tempfile import NamedTemporaryFile
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
@@ -67,7 +67,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
                                        "passes": 5,
                                        "select": "e501"},
                               },
-                  'dir_rules': {'db_diffs': ['sql_diff_dir_ext', 'sql_diff_basename']}}
+                  'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql']}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -385,17 +385,57 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message('dbdiffs and migration scripts should use .sql_diff or .py extension')
-def _validate_sql_diff_dir_ext(fname, options=None):
-    return fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")
 
-@message('Patch should be located in directory with the name of the jira ticket')
-def _validate_sql_diff_basename(fname, options=None):
-    return "hey"
-    re_ticket = re.compile( "^[A-Z]+-[0-9]+$" )
+def _validate_sql_diff_dir(fname, options=None):
+    if not (fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")):
+        return 'dbdiffs and migration scripts should use .sql_diff or .py extension'
+    
+    re_ticket = re.compile( "^[A-Z]+-[0-9]+" )
+    
+    
     dirs = get_dirs(fname)
     basedir = dirs[-2]
-    return re_ticket.match(basedir)
+    filename = dirs[-1]
+    
+    if not re.match( "^[A-Z]+-[0-9]+", basedir):
+        return 'Patch should be located in directory with the name of the jira ticket'
+    
+    if not filename.startswith(basedir):
+        return 'Filename should start with the parent directory name'
+    
+    return True
+
+def _validate_sql_diff_sql(fname, options=None):
+    dirs = get_dirs(fname)
+    filename = dirs[-1]
+    
+    if fname.endswith(".py"):
+        return True
+    
+    sql = open(fname).read()
+    if not re.search('set[ \t]+role[ \t]+to[ \t]+zalando(_admin)?\s*', sql, re.IGNORECASE):
+        return 'set role to zalando; must be present in db diff'
+    
+    
+    if re.match('^[ \t]*\\\\cd[ \t]+:', sql, re.IGNORECASE):
+        return "\cd : is not allowed in db diffs anymore"
+    
+    if fnmatch.fnmatch(filename, "*rollback*"):
+        if not fnmatch.fnmatch(fname, "*.rollback.sql_diff"):
+            return "rollback script should have .rollback.sql_diff extension"
+        patch_name = filename.replace(".rollback.sql_diff","")
+        re_patch_name = re.escape(patch_name)
+        pattern = 'SELECT[ \t]+_v\.unregister_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql, re.IGNORECASE):
+            return "unregister patch not found or patch name does not match with filename"
+    else:
+        patch_name = filename.replace(".sql_diff","")
+        re_patch_name = re.escape(patch_name)
+        pattern = 'SELECT[ \t]+_v\.register_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql, re.IGNORECASE):
+            return "register patch not found or patch name does not match with filename"
+    
+    return True
 
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
