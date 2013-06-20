@@ -393,7 +393,7 @@ def _validate_database_dir(fname, options={}):
     pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParser')
 
     try:
-        return_code = subprocess.call([pgsqlparser_bin,'-q', '-c', '-i'])
+        return_code = subprocess.call([pgsqlparser_bin,'-q', '-c', '-i', fname])
         return return_code == 0
     except:
         return False
