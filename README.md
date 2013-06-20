@@ -7,9 +7,13 @@ Requirements
 ------------
 
 * python 2.7+
-* lxml
-* pep8
-* autopep8
+* lxml (for XML formatting)
+* pep8 (for Python checking)
+* autopep8 (for Python formatting)
+* Jalopy (for Java code formatting)
+* coffeelint (for CoffeeScript validation)
+* PHP_CodeSniffer (for PHP style checking)
+* Puppet (for Puppet manifest validation)
 
 Getting Started
 ---------------
