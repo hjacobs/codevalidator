@@ -7,6 +7,11 @@ Simple source code validator with file reformatting option (remove trailing WS, 
 written by Henning Jacobs <henning@jacobs1.de>
 """
 
+from cStringIO import StringIO
+from collections import defaultdict
+from pythontidy import PythonTidy
+from tempfile import NamedTemporaryFile
+from xml.etree.ElementTree import ElementTree
 import argparse
 import csv
 import fnmatch
@@ -16,10 +21,6 @@ import re
 import subprocess
 import sys
 import tempfile
-from cStringIO import StringIO
-from collections import defaultdict
-from pythontidy import PythonTidy
-from xml.etree.ElementTree import ElementTree
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
@@ -40,7 +41,7 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
                             '*.groovy': DEFAULT_RULES,
                             '*.htm': DEFAULT_RULES,
                             '*.html': DEFAULT_RULES,
-                            '*.java': DEFAULT_RULES,
+                            '*.java': DEFAULT_RULES+ ['jalopy'],
                             '*.js': DEFAULT_RULES,
                             '*.json': DEFAULT_RULES + ['json'],
                             '*.jsp': DEFAULT_RULES,
@@ -66,7 +67,8 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
                                        "passes": 5,
                                        "select": "e501"},
                               },
-                  'dir_rules': {'db_diffs': ['sql_diff_dir']}}
+                  'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'],
+                                'database': ['database_dir']}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -233,6 +235,34 @@ def _validate_pep8(fd, options):
     check = pep8style.input_file(fd.name)
     return check == 0
 
+def __jalopy(original, options):
+    jalopy_config=options.get('jalopy-config', '/opt/jalopy/Zalando_Jalopy.xml')
+    java_bin = options.get('java_bin', '/usr/bin/java')
+
+    f = NamedTemporaryFile(suffix=".java", delete=False)
+    f.write(original)
+    f.flush()
+    jalopy = [java_bin, '-classpath', '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar','Jalopy']
+    config = ["--convention", jalopy_config]
+    cmd = jalopy + config + [f.name]
+    j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    j.communicate()
+    f.seek(0)
+    result = f.read()
+    return result
+
+@message('is not Jalopy formatted')
+def _validate_jalopy(fd, options = {}):
+    original = fd.read()
+    result = __jalopy(original, options)
+    return original == result
+
+
+def _fix_jalopy(src, dst, options = {}):
+    original = src.read()
+    result = __jalopy(original, options)
+    dst.write(result)
+
 
 def _fix_pythontidy(src, dst):
     PythonTidy.tidy_up(src, dst)
@@ -356,9 +386,68 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message('dbdiffs and migration scripts should use .sql_diff or .py extension')
+@message("contains syntax errors")
+def _validate_database_dir(fname, options={}):
+    if "database/lounge" in fname or not fnmatch.fnmatch(fname, "*.sql"):
+        return True
+    pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParser')
+
+    try:
+        return_code = subprocess.call([pgsqlparser_bin,'-q', '-c', '-i', fname])
+        return return_code == 0
+    except:
+        return False
+
 def _validate_sql_diff_dir(fname, options=None):
-    return fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")
+    if not (fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")):
+        return 'dbdiffs and migration scripts should use .sql_diff or .py extension'
+    
+    re_ticket = re.compile( "^[A-Z]+-[0-9]+" )
+    
+    
+    dirs = get_dirs(fname)
+    basedir = dirs[-2]
+    filename = dirs[-1]
+    
+    if not re.match( "^[A-Z]+-[0-9]+", basedir):
+        return 'Patch should be located in directory with the name of the jira ticket'
+    
+    if not filename.startswith(basedir):
+        return 'Filename should start with the parent directory name'
+    
+    return True
+
+def _validate_sql_diff_sql(fname, options=None):
+    dirs = get_dirs(fname)
+    filename = dirs[-1]
+    
+    if fname.endswith(".py"):
+        return True
+    
+    sql = open(fname).read()
+    if not re.search('set[ \t]+role[ \t]+to[ \t]+zalando(_admin)?\s*', sql, re.IGNORECASE):
+        return 'set role to zalando; must be present in db diff'
+    
+    
+    if re.match('^[ \t]*\\\\cd[ \t]+:', sql, re.IGNORECASE):
+        return "\cd : is not allowed in db diffs anymore"
+    
+    if fnmatch.fnmatch(filename, "*rollback*"):
+        if not fnmatch.fnmatch(fname, "*.rollback.sql_diff"):
+            return "rollback script should have .rollback.sql_diff extension"
+        patch_name = filename.replace(".rollback.sql_diff","")
+        re_patch_name = re.escape(patch_name)
+        pattern = 'SELECT[ \t]+_v\.unregister_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql, re.IGNORECASE):
+            return "unregister patch not found or patch name does not match with filename"
+    else:
+        patch_name = filename.replace(".sql_diff","")
+        re_patch_name = re.escape(patch_name)
+        pattern = 'SELECT[ \t]+_v\.register_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql, re.IGNORECASE):
+            return "register patch not found or patch name does not match with filename"
+    
+    return True
 
 VALIDATION_ERRORS = []
 VALIDATION_DETAILS = []
@@ -403,7 +492,9 @@ def validate_file_dir_rules(fname):
             _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
         else:
             if not res:
-                    _error(fname, rule, func)
+                _error(fname, rule, func)
+            elif type(res) == str:
+                _error(fname, rule, func, res)
 
 
 def validate_file_with_rules(fname, rules):
@@ -425,6 +516,8 @@ def validate_file_with_rules(fname, rules):
             else:
                 if not res:
                     _error(fname, rule, func)
+                elif type(res) == str:
+                    _error(fname, rule, func, res)
 
 
 def validate_file(fname):
