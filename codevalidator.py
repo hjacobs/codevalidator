@@ -67,7 +67,8 @@ DEFAULT_CONFIG = {'exclude_dirs': ['.svn', '.git'],
                                        "passes": 5,
                                        "select": "e501"},
                               },
-                  'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql']}}
+                  'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'],
+                                'database': ['database_dir']}}
 
 CONFIG = DEFAULT_CONFIG
 
@@ -385,6 +386,17 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
+@message("contains syntax errors")
+def _validate_database_dir(fname, options={}):
+    if "database/lounge" in fname or not fnmatch.fnmatch(fname, "*.sql"):
+        return True
+    pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParser')
+
+    try:
+        return_code = subprocess.call([pgsqlparser_bin,'-q', '-c', '-i'])
+        return return_code == 0
+    except:
+        return False
 
 def _validate_sql_diff_dir(fname, options=None):
     if not (fnmatch.fnmatch(fname, "*.sql_diff") or fnmatch.fnmatch(fname, "*.py")):
