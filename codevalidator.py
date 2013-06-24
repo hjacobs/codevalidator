@@ -13,6 +13,7 @@ from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
 import argparse
+import ast
 import csv
 import fnmatch
 import json
@@ -53,7 +54,7 @@ DEFAULT_CONFIG = {
         '*.phtml': DEFAULT_RULES,
         '*.pp': DEFAULT_RULES + ['puppet'],
         '*.properties': DEFAULT_RULES + ['ascii'],
-        '*.py': DEFAULT_RULES + ['pep8'],
+        '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
         '*.sql': DEFAULT_RULES,
         '*.sql_diff': DEFAULT_RULES,
@@ -407,6 +408,18 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
+@message('doesn\'t pass Flake validation')
+def _validate_pyflakes(fd, options={}):
+    from pyflakes import checker
+    tree = ast.parse(fd.read(), fd.name)
+    w = checker.Checker(tree, fd.name)
+    w.messages.sort(key=lambda x: x.lineno)
+    for message in w.messages:
+        error = message.message % message.message_args
+        print "{filename}:{lineno}:{col}: {error}".format(error=error, **message.__dict__)
+    return len(w.messages) == 0
+
+
 @message('contains syntax errors')
 def _validate_database_dir(fname, options={}):
     if 'database/lounge' in fname or not fnmatch.fnmatch(fname, '*.sql'):
@@ -451,24 +464,29 @@ def _validate_sql_diff_sql(fname, options=None):
         return True
 
     sql = open(fname).read()
-    if not re.search('set[ \t]+role[ \t]+to[ \t]+zalando(_admin)?\s*', sql, re.IGNORECASE):
+    if not re.search('set[ ]+role[ ]+to[ ]+zalando(_admin)?\s*', sql, re.IGNORECASE):
         return 'set role to zalando; must be present in db diff'
-
-    if re.match('^[ \t]*\\\\cd[ \t]+:', sql, re.IGNORECASE):
+    
+    if re.search('^[ ]*\\\\cd +', sql, re.IGNORECASE | re.MULTILINE):
         return "\cd : is not allowed in db diffs anymore"
+
+    for m in re.finditer('^[ ]*\\\\i +([^\s]+)', sql, re.IGNORECASE | re.MULTILINE):
+        if not m.group(1).startswith('database/'):
+            return 'include path (\i ) should starts with `database/` directory'
+
 
     if fnmatch.fnmatch(filename, '*rollback*'):
         if not fnmatch.fnmatch(fname, '*.rollback.sql_diff'):
             return 'rollback script should have .rollback.sql_diff extension'
         patch_name = filename.replace('.rollback.sql_diff', '')
         re_patch_name = re.escape(patch_name)
-        pattern = 'SELECT[ \t]+_v\.unregister_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        pattern = 'SELECT[ ]+_v\.unregister_patch[ ]*\([ ]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
         if not re.search(pattern, sql, re.IGNORECASE):
             return 'unregister patch not found or patch name does not match with filename'
     else:
         patch_name = filename.replace('.sql_diff', '')
         re_patch_name = re.escape(patch_name)
-        pattern = 'SELECT[ \t]+_v\.register_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        pattern = 'SELECT[ ]+_v\.register_patch[ ]*\([ ]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
         if not re.search(pattern, sql, re.IGNORECASE):
             return 'register patch not found or patch name does not match with filename'
 
@@ -567,7 +585,7 @@ def validate_directory(path):
 
 def fix_file(fname, rules):
     was_fixed = True
-    shutil.copy2(fname, "."+fname+"~") #creates a backup
+    shutil.copy2(fname, "." + fname + "~")  # creates a backup
     with open(fname, 'rb') as fd:
         dst = fd
         for rule in rules:
@@ -584,11 +602,11 @@ def fix_file(fname, rules):
                         func(src, dst)
                     was_fixed &= True
                 except Exception, e:
-                    was_fixed &= False
+                    was_fixed = False
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
-                    
-    fixed = dst.getvalue()
-    #if the lenght of the fixed code is 0 we don't write the fixed version because either:
+
+    fixed = dst.getvalue() if hasattr(dst, "getvalue") else ""
+    # if the lenght of the fixed code is 0 we don't write the fixed version because either:
     # a) is not worth it
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
