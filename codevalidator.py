@@ -597,7 +597,7 @@ def fix_file(fname, rules):
                         func(src, dst)
                     was_fixed &= True
                 except Exception, e:
-                    was_fixed &= False
+                    was_fixed = False
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
 
     fixed = dst.getvalue() if hasattr(dst, "getvalue") else ""
