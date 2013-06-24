@@ -464,7 +464,7 @@ def _validate_sql_diff_sql(fname, options=None):
         return True
 
     sql = open(fname).read()
-    if not re.search('set[ \t]+role[ \t]+to[ \t]+zalando(_admin)?\s*', sql, re.IGNORECASE):
+    if not re.search('set[ ]+role[ ]+to[ ]+zalando(_admin)?\s*', sql, re.IGNORECASE):
         return 'set role to zalando; must be present in db diff'
     
     if re.search('^[ ]*\\\\cd +', sql, re.IGNORECASE | re.MULTILINE):
@@ -475,19 +475,18 @@ def _validate_sql_diff_sql(fname, options=None):
             return 'include path (\i ) should starts with `database/` directory'
 
 
-
     if fnmatch.fnmatch(filename, '*rollback*'):
         if not fnmatch.fnmatch(fname, '*.rollback.sql_diff'):
             return 'rollback script should have .rollback.sql_diff extension'
         patch_name = filename.replace('.rollback.sql_diff', '')
         re_patch_name = re.escape(patch_name)
-        pattern = 'SELECT[ \t]+_v\.unregister_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        pattern = 'SELECT[ ]+_v\.unregister_patch[ ]*\([ ]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
         if not re.search(pattern, sql, re.IGNORECASE):
             return 'unregister patch not found or patch name does not match with filename'
     else:
         patch_name = filename.replace('.sql_diff', '')
         re_patch_name = re.escape(patch_name)
-        pattern = 'SELECT[ \t]+_v\.register_patch[ \t]*\([ \t]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        pattern = 'SELECT[ ]+_v\.register_patch[ ]*\([ ]*\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
         if not re.search(pattern, sql, re.IGNORECASE):
             return 'register patch not found or patch name does not match with filename'
 
