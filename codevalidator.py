@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import shutil
 
 NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
@@ -565,7 +566,8 @@ def validate_directory(path):
 
 
 def fix_file(fname, rules):
-    was_fixed = False
+    was_fixed = True
+    shutil.copy2(fname, "."+fname+"~") #creates a backup
     with open(fname, 'rb') as fd:
         dst = fd
         for rule in rules:
@@ -580,12 +582,20 @@ def fix_file(fname, rules):
                         func(src, dst, options)
                     else:
                         func(src, dst)
-                    was_fixed = True
+                    was_fixed &= True
                 except Exception, e:
+                    was_fixed &= False
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
-    if was_fixed:
+                    
+    fixed = dst.getvalue()
+    #if the lenght of the fixed code is 0 we don't write the fixed version because either:
+    # a) is not worth it
+    # b) some fix functions destroyed the code
+    if was_fixed and len(fixed) > 0:
         with open(fname, 'wb') as fd:
-            fd.write(dst.getvalue())
+            fd.write(fixed)
+    else:
+        print '{0}: ERROR fixing file. File remained unchanged'.format(fname)
 
 
 def fix_files():
