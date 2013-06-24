@@ -72,6 +72,7 @@ DEFAULT_CONFIG = {
         'select': 'e501',
     }, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
     'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'], 'database': ['database_dir']},
+    'create_backup': True,
 }
 
 CONFIG = DEFAULT_CONFIG
@@ -584,7 +585,9 @@ def validate_directory(path):
 
 def fix_file(fname, rules):
     was_fixed = True
-    shutil.copy2(fname, '.' + fname + '~')  # creates a backup
+    if CONFIG.get('create_backup', True):
+        dirname, basename = os.path.split(fname)
+        shutil.copy2(fname, os.path.join(dirname, '.' + basename + '~'))  # creates a backup
     with open(fname, 'rb') as fd:
         dst = fd
         for rule in rules:
@@ -638,6 +641,7 @@ def main():
     parser.add_argument('-f', '--fix', action='store_true', help='try to fix validation errors (by reformatting files)')
     parser.add_argument('-a', '--apply', metavar='RULE', action='append', help='apply the given rule(s)')
     parser.add_argument('-v', '--verbose', action='store_true', help='print more detailed error information')
+    parser.add_argument('--no-backup', action='store_true', help='for --fix: do not create a backup file')
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
@@ -647,6 +651,8 @@ def main():
     if args.config:
         CONFIG.update(json.load(open(args.config, 'rb')))
     CONFIG['verbose'] = args.verbose
+    if args.no_backup:
+        CONFIG['create_backup'] = False
 
     for f in args.files:
         if args.recursive:
