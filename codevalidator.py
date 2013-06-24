@@ -17,6 +17,7 @@ import ast
 import csv
 import fnmatch
 import json
+import logging
 import os
 import re
 import subprocess
@@ -50,6 +51,7 @@ DEFAULT_CONFIG = {
         '*.json': DEFAULT_RULES + ['json'],
         '*.jsp': DEFAULT_RULES,
         '*.less': DEFAULT_RULES,
+        '*.md': DEFAULT_RULES,
         '*.php': DEFAULT_RULES + ['phpcs'],
         '*.phtml': DEFAULT_RULES,
         '*.pp': DEFAULT_RULES + ['puppet'],
@@ -73,6 +75,7 @@ DEFAULT_CONFIG = {
     }, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
     'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'], 'database': ['database_dir']},
     'create_backup': True,
+    'verbose': 0,
 }
 
 CONFIG = DEFAULT_CONFIG
@@ -83,13 +86,27 @@ CONFIG = DEFAULT_CONFIG
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-class ConfigurationError(Exception):
+class BaseException(Exception):
 
     def __init__(self, msg):
         self.msg = msg
 
     def __str__(self):
         return '%s: %s' % (self.__class__.__name__, self.msg)
+
+
+class ConfigurationError(BaseException):
+
+    '''missing or incorrect codevalidator configuration'''
+
+    pass
+
+
+class ExecutionError(BaseException):
+
+    '''error while executing some command'''
+
+    pass
 
 
 def indent_xml(elem, level=0):
@@ -267,7 +284,7 @@ def __jalopy(original, options):
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = j.communicate()
         if stderr or 'ERROR' in stdout:
-            print stdout, stderr
+            raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
         f.seek(0)
         result = f.read()
     return result
@@ -409,7 +426,7 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message('doesn\'t pass pyflakes validation')
+@message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
     from pyflakes import checker
     tree = ast.parse(fd.read(), fd.name)
@@ -498,6 +515,8 @@ VALIDATION_DETAILS = []
 
 
 def _error(fname, rule, func, message=None):
+    '''output the collected error messages and also print details if verbosity > 0'''
+
     if not message:
         message = func.message
     print '{0}: {1}'.format(fname, message % CONFIG.get('options', {}).get(rule, {}))
@@ -522,6 +541,7 @@ def validate_file_dir_rules(fname):
     dirs = get_dirs(fullpath)
     dirrules = sum([CONFIG['dir_rules'][rule] for rule in CONFIG['dir_rules'] if rule in dirs], [])
     for rule in dirrules:
+        logging.debug('Validating %s with %s..', fname, rule)
         func = globals().get('_validate_' + rule)
         if not func:
             print rule, 'does not exist'
@@ -544,6 +564,7 @@ def validate_file_dir_rules(fname):
 def validate_file_with_rules(fname, rules):
     with open(fname, 'rb') as fd:
         for rule in rules:
+            logging.debug('Validating %s with %s..', fname, rule)
             fd.seek(0)
             func = globals().get('_validate_' + rule)
             if not func:
@@ -593,6 +614,7 @@ def fix_file(fname, rules):
         for rule in rules:
             func = globals().get('_fix_' + rule)
             if func:
+                print '{0}: Trying to fix {1}..'.format(fname, rule)
                 options = CONFIG.get('options', {}).get(rule)
                 src = dst
                 dst = StringIO()
@@ -640,7 +662,7 @@ def main():
     parser.add_argument('-c', '--config', help='use custom configuration file (default: ~/.codevalidatorrc)')
     parser.add_argument('-f', '--fix', action='store_true', help='try to fix validation errors (by reformatting files)')
     parser.add_argument('-a', '--apply', metavar='RULE', action='append', help='apply the given rule(s)')
-    parser.add_argument('-v', '--verbose', action='store_true', help='print more detailed error information')
+    parser.add_argument('-v', '--verbose', action='count', help='print more detailed error information (-vv for debug)')
     parser.add_argument('--no-backup', action='store_true', help='for --fix: do not create a backup file')
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
@@ -650,12 +672,15 @@ def main():
         args.config = config_file
     if args.config:
         CONFIG.update(json.load(open(args.config, 'rb')))
-    CONFIG['verbose'] = args.verbose
+    if args.verbose:
+        CONFIG['verbose'] = args.verbose
+        if args.verbose > 1:
+            logging.basicConfig(level=logging.DEBUG, format='%(levelname)s %(message)s')
     if args.no_backup:
         CONFIG['create_backup'] = False
 
     for f in args.files:
-        if args.recursive:
+        if args.recursive and os.path.isdir(f):
             validate_directory(f)
         elif args.apply:
             fix_file(f, args.apply)
