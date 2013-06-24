@@ -13,6 +13,7 @@ from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
 import argparse
+import ast
 import csv
 import fnmatch
 import json
@@ -53,7 +54,7 @@ DEFAULT_CONFIG = {
         '*.phtml': DEFAULT_RULES,
         '*.pp': DEFAULT_RULES + ['puppet'],
         '*.properties': DEFAULT_RULES + ['ascii'],
-        '*.py': DEFAULT_RULES + ['pep8'],
+        '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
         '*.sql': DEFAULT_RULES,
         '*.sql_diff': DEFAULT_RULES,
@@ -407,6 +408,18 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
+@message('doesn\'t pass Flake validation')
+def _validate_pyflakes(fd, options={}):
+    from pyflakes import checker
+    tree = ast.parse(fd.read(), fd.name)
+    w = checker.Checker(tree, fd.name)
+    w.messages.sort(key=lambda x: x.lineno)
+    for message in w.messages:
+        error = message.message % message.message_args
+        print "{filename}:{lineno}:{col}: {error}".format(error=error, **message.__dict__)
+    return len(w.messages) == 0
+
+
 @message('contains syntax errors')
 def _validate_database_dir(fname, options={}):
     if 'database/lounge' in fname or not fnmatch.fnmatch(fname, '*.sql'):
@@ -567,7 +580,7 @@ def validate_directory(path):
 
 def fix_file(fname, rules):
     was_fixed = True
-    shutil.copy2(fname, "."+fname+"~") #creates a backup
+    shutil.copy2(fname, "." + fname + "~")  # creates a backup
     with open(fname, 'rb') as fd:
         dst = fd
         for rule in rules:
@@ -586,9 +599,9 @@ def fix_file(fname, rules):
                 except Exception, e:
                     was_fixed &= False
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
-                    
+
     fixed = dst.getvalue()
-    #if the lenght of the fixed code is 0 we don't write the fixed version because either:
+    # if the lenght of the fixed code is 0 we don't write the fixed version because either:
     # a) is not worth it
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
