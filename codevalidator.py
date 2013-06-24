@@ -582,16 +582,15 @@ def fix_file(fname, rules):
                         func(src, dst, options)
                     else:
                         func(src, dst)
-                    was_fixed *= True
+                    was_fixed &= True
                 except Exception, e:
-                    was_fixed *= False
+                    was_fixed &= False
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
                     
     fixed = dst.getvalue()
     #if the lenght of the fixed code is 0 we don't write the fixed version because either:
     # a) is not worth it
     # b) some fix functions destroyed the code
-    print was_fixed
     if was_fixed and len(fixed) > 0:
         with open(fname, 'wb') as fd:
             fd.write(fixed)
