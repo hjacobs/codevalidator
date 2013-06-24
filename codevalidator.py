@@ -466,9 +466,15 @@ def _validate_sql_diff_sql(fname, options=None):
     sql = open(fname).read()
     if not re.search('set[ \t]+role[ \t]+to[ \t]+zalando(_admin)?\s*', sql, re.IGNORECASE):
         return 'set role to zalando; must be present in db diff'
-
-    if re.match('^[ \t]*\\\\cd[ \t]+:', sql, re.IGNORECASE):
+    
+    if re.search('^[ ]*\\\\cd +', sql, re.IGNORECASE | re.MULTILINE):
         return "\cd : is not allowed in db diffs anymore"
+
+    for m in re.finditer('^[ ]*\\\\i +([^\s]+)', sql, re.IGNORECASE | re.MULTILINE):
+        if not m.group(1).startswith('database/'):
+            return 'include path (\i ) should starts with `database/` directory'
+
+
 
     if fnmatch.fnmatch(filename, '*rollback*'):
         if not fnmatch.fnmatch(fname, '*.rollback.sql_diff'):
