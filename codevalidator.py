@@ -600,7 +600,7 @@ def fix_file(fname, rules):
                     was_fixed &= False
                     print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
 
-    fixed = dst.getvalue()
+    fixed = dst.getvalue() if hasattr(dst, "getvalue") else ""
     # if the lenght of the fixed code is 0 we don't write the fixed version because either:
     # a) is not worth it
     # b) some fix functions destroyed the code
