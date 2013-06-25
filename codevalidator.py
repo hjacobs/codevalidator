@@ -9,6 +9,7 @@ written by Henning Jacobs <henning@jacobs1.de>
 
 from cStringIO import StringIO
 from collections import defaultdict
+
 from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
@@ -26,6 +27,7 @@ import tempfile
 import shutil
 
 NOT_SPACE = re.compile('[^ ]')
+
 TRAILING_WHITESPACE_CHARS = set(' \t')
 INDENTATION = '    '
 
@@ -75,6 +77,7 @@ DEFAULT_CONFIG = {
     }, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
     'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'], 'database': ['database_dir']},
     'create_backup': True,
+    'backup_filename': '.{original}.pre-cvfix',
     'verbose': 0,
 }
 
@@ -608,7 +611,7 @@ def fix_file(fname, rules):
     was_fixed = True
     if CONFIG.get('create_backup', True):
         dirname, basename = os.path.split(fname)
-        shutil.copy2(fname, os.path.join(dirname, '.' + basename + '~'))  # creates a backup
+        shutil.copy2(fname, os.path.join(dirname, CONFIG['backup_filename'].format(original=basename)))  # creates a backup
     with open(fname, 'rb') as fd:
         dst = fd
         for rule in rules:
