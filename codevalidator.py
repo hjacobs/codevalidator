@@ -485,13 +485,13 @@ def _validate_sql_diff_sql(fname, options=None):
         return True
 
     sql = open(fname).read()
-    if not re.search('set +role +to +zalando(_admin)?\s*', sql, re.IGNORECASE):
+    if not re.search('[Ss][Ee][Tt] +[Rr][Oo][Ll][Ee] +[Tt][Oo] +zalando(_admin)?\s*', sql):
         return 'set role to zalando; must be present in db diff'
 
-    if re.search('^ *\\\\cd +', sql, re.IGNORECASE | re.MULTILINE):
+    if re.search('^ *\\\\cd +', sql, re.MULTILINE):
         return "\cd : is not allowed in db diffs anymore"
 
-    for m in re.finditer('^ *\\\\i +([^\s]+)', sql, re.IGNORECASE | re.MULTILINE):
+    for m in re.finditer('^ *\\\\i +([^\s]+)', sql, re.MULTILINE):
         if not m.group(1).startswith('database/'):
             return 'include path (\i ) should starts with `database/` directory'
 
@@ -500,14 +500,14 @@ def _validate_sql_diff_sql(fname, options=None):
             return 'rollback script should have .rollback.sql_diff extension'
         patch_name = filename.replace('.rollback.sql_diff', '')
         re_patch_name = re.escape(patch_name)
-        pattern = 'SELECT +_v\.unregister_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
-        if not re.search(pattern, sql, re.IGNORECASE):
+        pattern = '[Ss][Ee][Ll][Ee][Cc][Tt] +_v\.unregister_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql):
             return 'unregister patch not found or patch name does not match with filename'
     else:
         patch_name = filename.replace('.sql_diff', '')
         re_patch_name = re.escape(patch_name)
-        pattern = 'SELECT +_v\.register_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
-        if not re.search(pattern, sql, re.IGNORECASE):
+        pattern = '[Ss][Ee][Ll][Ee][Cc][Tt] +_v\.register_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql):
             return 'register patch not found or patch name does not match with filename'
 
     return True
