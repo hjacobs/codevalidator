@@ -278,13 +278,17 @@ def __jalopy(original, options):
     if not classpath:
         raise ConfigurationError('Jalopy classpath not set')
 
+    _env = {}
+    _env.update(os.environ)
+    _env['LANG'] = 'en_US.utf8'
+    _env['LC_ALL'] = 'en_US.utf8'
     with NamedTemporaryFile(suffix='.java', delete=False) as f:
         f.write(original)
         f.flush()
         jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
         config = (['--convention', jalopy_config] if jalopy_config else [])
         cmd = jalopy + config + [f.name]
-        j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
         stdout, stderr = j.communicate()
         if stderr or 'ERROR' in stdout:
             raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
