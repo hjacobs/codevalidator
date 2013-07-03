@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # PythonTidy.py
@@ -445,8 +445,8 @@ if PERSONAL:
     # LOCAL_NAME_SCRIPT.extend([unmangle, camel_case_to_underscore])
     # GLOBAL_NAME_SCRIPT.extend([unmangle, camel_case_to_underscore, all_upper_case])
     CLASS_NAME_SCRIPT.extend([elide_c, underscore_to_camel_case])
-    FUNCTION_NAME_SCRIPT.extend([camel_case_to_underscore])
-    FORMAL_PARAM_NAME_SCRIPT.extend([elide_a, camel_case_to_underscore])
+    # FUNCTION_NAME_SCRIPT.extend([camel_case_to_underscore])
+    # FORMAL_PARAM_NAME_SCRIPT.extend([elide_a, camel_case_to_underscore])
     # ATTR_NAME_SCRIPT.extend([elide_f, camel_case_to_underscore,
     #                        substitutions])
 
