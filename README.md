@@ -44,3 +44,4 @@ Running in very verbose (debug) mode to see what is validated:
     ./codevalidator.py -vvrc test/config.json test
 
 
+If you are annoyed by the .XX.pre-cvfix backup files you can disable them either on the command line (--no-backup) or in the config file.
