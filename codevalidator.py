@@ -505,15 +505,15 @@ def _validate_sql_diff_sql(fname, options=None):
         patch_name = filename.replace('.rollback.sql_diff', '')
         re_patch_name = re.escape(patch_name)
         pattern = \
-            '[Ss][Ee][Ll][Ee][Cc][Tt] +_v\.unregister_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
-        if not re.search(pattern, sql):
+            '^ *[Ss][Ee][Ll][Ee][Cc][Tt] +_v\.unregister_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql, re.MULTILINE):
             return 'unregister patch not found or patch name does not match with filename'
     else:
         patch_name = filename.replace('.sql_diff', '')
         re_patch_name = re.escape(patch_name)
         pattern = \
-            '[Ss][Ee][Ll][Ee][Cc][Tt] +_v\.register_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
-        if not re.search(pattern, sql):
+            '^ *[Ss][Ee][Ll][Ee][Cc][Tt] +_v\.register_patch *\( *\\\'{patch_name}\\\''.format(patch_name=re_patch_name)
+        if not re.search(pattern, sql, re.MULTILINE):
             return 'register patch not found or patch name does not match with filename'
 
     return True
