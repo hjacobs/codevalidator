@@ -290,7 +290,8 @@ def __jalopy(original, options):
         cmd = jalopy + config + [f.name]
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
         stdout, stderr = j.communicate()
-        if stderr or 'ERROR' in stdout:
+        has_error = any(line.startswith('[ERROR]') for line in stdout.split('\n'))
+        if stderr or has_error:
             raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
         f.seek(0)
         result = f.read()
