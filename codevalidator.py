@@ -291,8 +291,10 @@ def __jalopy(original, options):
         cmd = jalopy + config + [f.name]
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
         stdout, stderr = j.communicate()
-        if stderr or 'ERROR' in stdout:
+        if stderr or '[ERROR]' in stdout:
             raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
+        if '[WARN]' in stdout:
+            logging.info('Jalopy reports warnings: %s', stdout)
         f.seek(0)
         result = f.read()
     return result
