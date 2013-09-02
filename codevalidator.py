@@ -41,6 +41,7 @@ DEFAULT_RULES = [
 
 DEFAULT_CONFIG = {
     'exclude_dirs': ['.svn', '.git'],
+    'exclude_files': ['.*.swp'],
     'rules': {
         '*.coffee': DEFAULT_RULES + ['coffeelint'],
         '*.conf': DEFAULT_RULES,
@@ -290,9 +291,10 @@ def __jalopy(original, options):
         cmd = jalopy + config + [f.name]
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
         stdout, stderr = j.communicate()
-        has_error = any(line.startswith('[ERROR]') for line in stdout.split('\n'))
-        if stderr or has_error:
+        if stderr or '[ERROR]' in stdout:
             raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
+        if '[WARN]' in stdout:
+            logging.info('Jalopy reports warnings: %s', stdout)
         f.seek(0)
         result = f.read()
     return result
@@ -483,10 +485,9 @@ def _validate_sql_diff_dir(fname, options=None):
 
 
 def _validate_sql_diff_sql(fname, options=None):
-    dirs = get_dirs(fname)
-    filename = dirs[-1]
+    head, filename = os.path.split(fname)
 
-    if fname.endswith('.py'):
+    if filename.endswith('.py'):
         return True
 
     sql = open(fname).read()
@@ -501,7 +502,7 @@ def _validate_sql_diff_sql(fname, options=None):
             return 'include path (\i ) should starts with `database/` directory'
 
     if fnmatch.fnmatch(filename, '*rollback*'):
-        if not fnmatch.fnmatch(fname, '*.rollback.sql_diff'):
+        if not fnmatch.fnmatch(filename, '*.rollback.sql_diff'):
             return 'rollback script should have .rollback.sql_diff extension'
         patch_name = filename.replace('.rollback.sql_diff', '')
         re_patch_name = re.escape(patch_name)
@@ -598,6 +599,10 @@ def validate_file_with_rules(fname, rules):
 def validate_file(fname):
     for exclude in CONFIG['exclude_dirs']:
         if '/%s/' % exclude in fname:
+            return
+    head, tail = os.path.split(fname)
+    for exclude in CONFIG['exclude_files']:
+        if fnmatch.fnmatch(tail, exclude):
             return
     validate_file_dir_rules(fname)
     for pattern, rules in CONFIG['rules'].items():
