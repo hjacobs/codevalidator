@@ -468,8 +468,8 @@ def _validate_database_dir(fname, options={}):
 
 
 def _validate_sql_diff_dir(fname, options=None):
-    if not (fnmatch.fnmatch(fname, '*.sql_diff') or fnmatch.fnmatch(fname, '*.py')):
-        return 'dbdiffs and migration scripts should use .sql_diff or .py extension'
+    if not (fnmatch.fnmatch(fname, '*.sql_diff') or fnmatch.fnmatch(fname, '*.py') or fnmatch.fnmatch(fname, '*.yml')):
+        return 'dbdiffs and migration scripts should use .sql_diff, .py or .yml extension'
 
     dirs = get_dirs(fname)
     basedir = dirs[-2]
@@ -487,7 +487,7 @@ def _validate_sql_diff_dir(fname, options=None):
 def _validate_sql_diff_sql(fname, options=None):
     head, filename = os.path.split(fname)
 
-    if filename.endswith('.py'):
+    if filename.endswith('.py') or filename.endswith('.yml'):
         return True
 
     sql = open(fname).read()
