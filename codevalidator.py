@@ -468,8 +468,9 @@ def _validate_database_dir(fname, options={}):
 
 
 def _validate_sql_diff_dir(fname, options=None):
-    if not (fnmatch.fnmatch(fname, '*.sql_diff') or fnmatch.fnmatch(fname, '*.py')):
-        return 'dbdiffs and migration scripts should use .sql_diff or .py extension'
+    allowed_file_types = ['*.sql_diff', '*.py', '*.yml']
+    if not any(fnmatch.fnmatch(fname, each) for each in allowed_file_types):
+        return 'dbdiffs and migration scripts should use .sql_diff, .py or .yml extension'
 
     dirs = get_dirs(fname)
     basedir = dirs[-2]
@@ -487,12 +488,16 @@ def _validate_sql_diff_dir(fname, options=None):
 def _validate_sql_diff_sql(fname, options=None):
     head, filename = os.path.split(fname)
 
-    if filename.endswith('.py'):
+    if filename.endswith('.py') or filename.endswith('.yml'):
         return True
 
     sql = open(fname).read()
-    if not re.search('[Ss][Ee][Tt] +[Rr][Oo][Ll][Ee] +[Tt][Oo] +zalando(_admin)?\s*', sql):
-        return 'set role to zalando; must be present in db diff'
+    has_set_role = re.search('[Ss][Ee][Tt] +[Rr][Oo][Ll][Ee] +[Tt][Oo] +zalando(_admin)?\s*', sql)
+    has_set_project_schema_owner_role = \
+        re.search('''^ *[Ss][Ee][Ll][Ee][Cc][Tt] +[Zz][Zz]_[Uu][Tt][Ii][Ll][Ss].[Ss][Ee][Tt]_[Pp][Rr][Oo][Jj][Ee][Cc][Tt]_[Ss][Cc][Hh][Ee][Mm][Aa]_[Oo][Ww][Nn][Ee][Rr]_[Rr][Oo][Ll][Ee]\(\'\w+\'\);'''
+                  )
+    if not (has_set_role or has_set_project_schema_owner_role):
+        return 'set role to zalando; or SELECT zz_utils.set_project_schema_owner_role(); must be present in db diff'
 
     if re.search('^ *\\\\cd +', sql, re.MULTILINE):
         return "\cd : is not allowed in db diffs anymore"
