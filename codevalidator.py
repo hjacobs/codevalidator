@@ -495,7 +495,7 @@ def _validate_sql_diff_sql(fname, options=None):
     has_set_role = re.search('[Ss][Ee][Tt] +[Rr][Oo][Ll][Ee] +[Tt][Oo] +zalando(_admin)?\s*', sql)
     has_set_project_schema_owner_role = \
         re.search('''^ *[Ss][Ee][Ll][Ee][Cc][Tt] +[Zz][Zz]_[Uu][Tt][Ii][Ll][Ss].[Ss][Ee][Tt]_[Pp][Rr][Oo][Jj][Ee][Cc][Tt]_[Ss][Cc][Hh][Ee][Mm][Aa]_[Oo][Ww][Nn][Ee][Rr]_[Rr][Oo][Ll][Ee]\(\'\w+\'\);'''
-                  )
+                  , sql)
     if not (has_set_role or has_set_project_schema_owner_role):
         return 'set role to zalando; or SELECT zz_utils.set_project_schema_owner_role(); must be present in db diff'
 
