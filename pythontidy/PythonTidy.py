@@ -452,17 +452,17 @@ if PERSONAL:
 
 # Other global constants:
 
-UNDERSCORE_PATTERN = re.compile('(?<=[a-z])([A-Z])')
-COMMENT_PATTERN = re.compile('([^#]*?)#\s?')  # 2007 May 25
-SHEBANG_PATTERN = re.compile('#!')
-CODING_PATTERN = re.compile('coding[=:]\\s*([.\\w\\-_]+)')
+UNDERSCORE_PATTERN = re.compile(r'(?<=[a-z])([A-Z])')
+COMMENT_PATTERN = re.compile(r'([^#]*?)#\s?')  # 2007 May 25
+SHEBANG_PATTERN = re.compile(r'#!')
+CODING_PATTERN = re.compile(r'coding[=:]\s*([.\w\-_]+)')
 NEW_LINE_PATTERN = re.compile(r'(?<!\\)(?:(?:\\n)|\n)')
 PGRAPH_PATTERN = re.compile(r'\n{2,}')  # 2007 May 25
 UNIVERSAL_NEW_LINE_PATTERN = re.compile(r'((?:\r\n)|(?:\r)|(?:\n))')
-QUOTE_PATTERN = re.compile('([rRuU]{,2})((?:"{3})|(?:\'{3})|(?:")|(?:\'))')  # 2007 May 01
-ELIDE_C_PATTERN = re.compile('^c([A-Z])')
-ELIDE_A_PATTERN = re.compile('^a([A-Z])')
-ELIDE_F_PATTERN = re.compile('^f([A-Z])')
+QUOTE_PATTERN = re.compile(r'([bu]?r?)([\'"]{3}|[\'"])', re.I)  # 2007 May 01
+ELIDE_C_PATTERN = re.compile(r'^c([A-Z])')
+ELIDE_A_PATTERN = re.compile(r'^a([A-Z])')
+ELIDE_F_PATTERN = re.compile(r'^f([A-Z])')
 DOC_WRAPPER = textwrap.TextWrapper(expand_tabs=True, replace_whitespace=True, initial_indent=NULL,
                                    subsequent_indent=NULL, fix_sentence_endings=False, break_long_words=True)  #    width=COL_LIMIT,  #  2012 May 23
 
@@ -3017,9 +3017,11 @@ class NodeLambda(NodeFunction):
         return
 
     def put(self, can_split=False):
-        self.line_more('lambda ')
+        self.line_more('lambda')
         self.push_scope()
         parms = self.pair_up(self.argnames, self.defaults)
+        if parms:
+            self.line_more(' ')
         for arg, default, stars in parms:
             self.walk(arg, NAME_SPACE.make_formal_param_name)
         for arg, default, stars in parms[:1]:
