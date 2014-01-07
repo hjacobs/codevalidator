@@ -62,7 +62,7 @@ DEFAULT_CONFIG = {
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
-        '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_comma'],
+        '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_semi_colon'],
         '*.sql_diff': DEFAULT_RULES,
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
@@ -451,10 +451,15 @@ def _fix_sql_comment_last_line(src, dst, options={}):
 
 
 @message('SQL file ends without a semicolon')
-def _validate_sql_comma(fd, options={}):
+def _validate_sql_semi_colon(fd, options={}):
     sql = fd.read()
     sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
     return sql_without_comments[-1] == ';'
+
+def _fix_sql_semi_colon(src, dst, options={}):
+    original = src.read()
+    dst.write(original)
+    dst.write('\n;\n')
 
 @message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
