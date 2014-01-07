@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import shutil
+import sqlparse
 
 NOT_SPACE = re.compile('[^ ]')
 
@@ -61,7 +62,7 @@ DEFAULT_CONFIG = {
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
-        '*.sql': DEFAULT_RULES + ['sql_comment_last_line'],
+        '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_comma'],
         '*.sql_diff': DEFAULT_RULES,
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
@@ -448,6 +449,12 @@ def _fix_sql_comment_last_line(src, dst, options={}):
     dst.write(original)
     dst.write('\n')
 
+
+@message('SQL file ends without a semicolon')
+def _validate_sql_comma(fd, options={}):
+    sql = fd.read()
+    sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
+    return sql_without_comments[-1] == ';'
 
 @message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
