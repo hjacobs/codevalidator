@@ -61,7 +61,7 @@ DEFAULT_CONFIG = {
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
-        '*.sql': DEFAULT_RULES,
+        '*.sql': DEFAULT_RULES + ['sql_comment_last_line'],
         '*.sql_diff': DEFAULT_RULES,
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
@@ -434,6 +434,19 @@ def _validate_pomdesc(fd):
     if not organization:
         _detail('is missing organization (<organization><name>..</name></organization>)')
     return not VALIDATION_DETAILS
+
+
+@message('line comments ends with EOF')
+def _validate_sql_comment_last_line(fd, options={}):
+    sql_lines = fd.readlines()
+    last_line_is_a_comment = sql_lines[-1].startswith('--')
+    return not last_line_is_a_comment
+
+
+def _fix_sql_comment_last_line(src, dst, options={}):
+    original = src.read()
+    dst.write(original)
+    dst.write('\n')
 
 
 @message('doesn\'t pass Pyflakes validation')
