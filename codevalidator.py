@@ -456,10 +456,14 @@ def _validate_sql_semi_colon(fd, options={}):
     sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
     return sql_without_comments[-1] == ';'
 
+
 def _fix_sql_semi_colon(src, dst, options={}):
     original = src.read()
     dst.write(original)
-    dst.write('\n;\n')
+    dst.write('''
+;
+''')
+
 
 @message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
