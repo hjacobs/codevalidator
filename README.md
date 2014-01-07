@@ -15,6 +15,7 @@ Requirements
 * coffeelint (for CoffeeScript validation)
 * PHP_CodeSniffer (for PHP style checking)
 * Puppet (for Puppet manifest validation)
+* sqlparse
 
 Getting Started
 ---------------
