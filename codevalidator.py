@@ -25,7 +25,6 @@ import subprocess
 import sys
 import tempfile
 import shutil
-import sqlparse
 
 NOT_SPACE = re.compile('[^ ]')
 
@@ -452,6 +451,7 @@ def _fix_sql_comment_last_line(src, dst, options={}):
 
 @message('SQL file ends without a semicolon')
 def _validate_sql_semi_colon(fd, options={}):
+    import sqlparse
     sql = fd.read()
     sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
     return sql_without_comments[-1] == ';'
