@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import shutil
+import sqlparse
 
 NOT_SPACE = re.compile('[^ ]')
 
@@ -61,7 +62,7 @@ DEFAULT_CONFIG = {
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
-        '*.sql': DEFAULT_RULES,
+        '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_semi_colon'],
         '*.sql_diff': DEFAULT_RULES,
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
@@ -434,6 +435,34 @@ def _validate_pomdesc(fd):
     if not organization:
         _detail('is missing organization (<organization><name>..</name></organization>)')
     return not VALIDATION_DETAILS
+
+
+@message('line comments ends with EOF')
+def _validate_sql_comment_last_line(fd, options={}):
+    sql_lines = fd.readlines()
+    last_line_is_a_comment = sql_lines[-1].startswith('--')
+    return not last_line_is_a_comment
+
+
+def _fix_sql_comment_last_line(src, dst, options={}):
+    original = src.read()
+    dst.write(original)
+    dst.write('\n')
+
+
+@message('SQL file ends without a semicolon')
+def _validate_sql_semi_colon(fd, options={}):
+    sql = fd.read()
+    sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
+    return sql_without_comments[-1] == ';'
+
+
+def _fix_sql_semi_colon(src, dst, options={}):
+    original = src.read()
+    dst.write(original)
+    dst.write('''
+;
+''')
 
 
 @message('doesn\'t pass Pyflakes validation')
