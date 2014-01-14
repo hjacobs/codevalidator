@@ -443,7 +443,7 @@ def _validate_sql_last_line(fd, options={}):
     return not last_line
 
 
-def _fix_sql_comment_last_line(src, dst, options={}):
+def _fix_sql_last_line(src, dst, options={}):
     original = src.read()
     dst.write(original)
     dst.write('\n')
