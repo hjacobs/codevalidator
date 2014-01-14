@@ -63,7 +63,7 @@ DEFAULT_CONFIG = {
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.sh': DEFAULT_RULES,
         '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_semi_colon'],
-        '*.sql_diff': DEFAULT_RULES,
+        '*.sql_diff': DEFAULT_RULES + ['sql_comment_last_line', 'sql_semi_colon'],
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
         '*.vm': DEFAULT_RULES,
@@ -437,10 +437,15 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message('line comments ends with EOF')
+# todo: Line comments ending with EOF are only prohibited if the comment starts in the first column of its line
+#      (e.g. "; --" is allowed).
+# todo: Files containing an unclosed multiline comment ("/*") are allowed, which is not explicitly enumerated as a thing
+#      to consider in the ticket's description, but seems to fits within its ambit.
+
+@message('line comment ends with EOF')
 def _validate_sql_comment_last_line(fd, options={}):
     sql_lines = fd.readlines()
-    last_line_is_a_comment = sql_lines[-1].startswith('--')
+    last_line_is_a_comment = (sql_lines[-1].startswith('--') if sql_lines else False)
     return not last_line_is_a_comment
 
 
@@ -454,7 +459,7 @@ def _fix_sql_comment_last_line(src, dst, options={}):
 def _validate_sql_semi_colon(fd, options={}):
     sql = fd.read()
     sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
-    return sql_without_comments[-1] == ';'
+    return (sql_without_comments[-1] == ';' if sql_without_comments else True)
 
 
 def _fix_sql_semi_colon(src, dst, options={}):
