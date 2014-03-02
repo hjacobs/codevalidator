@@ -13,6 +13,7 @@ from collections import defaultdict
 from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import fromstring as xmlfromstring
 import argparse
 import ast
 import csv
@@ -50,7 +51,7 @@ DEFAULT_CONFIG = {
         '*.htm': DEFAULT_RULES,
         '*.html': DEFAULT_RULES,
         '*.java': DEFAULT_RULES + ['jalopy'],
-        '*.js': DEFAULT_RULES,
+        '*.js': DEFAULT_RULES + ['jshint'],
         '*.json': DEFAULT_RULES + ['json'],
         '*.jsp': DEFAULT_RULES,
         '*.less': DEFAULT_RULES,
@@ -354,6 +355,25 @@ def _validate_phpcs(fd, options):
         valid = False
         _detail(row['Message'], line=row['Line'], column=row['Column'])
     return valid
+
+
+@message('has jshint warnings/errors')
+def _validate_jshint(fd, options=None):
+    cfgfile = os.path.join(BASE_DIR, 'config/jshint.json')
+    po = subprocess.Popen([
+        'jshint',
+        '--reporter=jslint',
+        '--config',
+        cfgfile,
+        '-',
+    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = po.communicate(input=fd.read())
+    tree = xmlfromstring(output)
+    has_errors = False
+    for elem in tree.findall('.//issue'):
+        _detail(elem.attrib['reason'], line=elem.attrib['line'], column=elem.attrib['char'])
+        has_errors = True
+    return not has_errors
 
 
 @message('fails coffeelint validation')

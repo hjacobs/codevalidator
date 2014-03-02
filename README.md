@@ -18,10 +18,12 @@ Requirements
 * PHP_CodeSniffer (for PHP style checking)
 * Puppet (for Puppet manifest validation)
 * sqlparse
+* jshint (for JavaScript checking)
 
 On Ubuntu you can install most packages easily:
 
-    sudo apt-get install python-lxml pep8 pyflakes
+    sudo apt-get install python-lxml pep8 pyflakes nodejs npm
+    sudo npm install -g jshint
 
 Getting Started
 ---------------

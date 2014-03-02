@@ -13,7 +13,7 @@
         "*.xml": ["utf8", "nobom", "notabs", "nocr", "notrailingws", "xmlfmt"],
         "*.html": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
         "*.txt": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
-        "*.js": ["utf8", "nobom", "notabs", "nocr", "indent4", "notrailingws"],
+        "*.js": ["utf8", "nobom", "notabs", "nocr", "indent4", "notrailingws", "jshint"],
         "*.less": ["utf8", "nobom", "notabs", "nocr", "notrailingws"],
         "*.css": ["utf8", "nobom", "notabs", "nocr"]
     }
