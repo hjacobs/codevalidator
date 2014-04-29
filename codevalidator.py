@@ -7,7 +7,7 @@ Simple source code validator with file reformatting option (remove trailing WS, 
 written by Henning Jacobs <henning@jacobs1.de>
 """
 
-from cStringIO import StringIO
+from StringIO import StringIO
 from collections import defaultdict
 
 from pythontidy import PythonTidy
@@ -16,6 +16,7 @@ from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import fromstring as xmlfromstring
 import argparse
 import ast
+import contextlib
 import csv
 import fnmatch
 import json
@@ -90,6 +91,8 @@ CONFIG = DEFAULT_CONFIG
 # NOTE: to support symlinking codevalidator.py into /usr/local/bin/
 # we use realpath to resolve the symlink back to our base directory
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
+STDIN_CONTENTS = None
 
 
 class BaseException(Exception):
@@ -628,11 +631,25 @@ def validate_file_dir_rules(fname):
 
 
 def open_file_for_read(fn):
-    return open(fn, 'rb')
+    global STDIN_CONTENTS
+    if CONFIG['filter_mode']:
+        if STDIN_CONTENTS is None:
+            STDIN_CONTENTS = StringIO(sys.stdin.read())
+            STDIN_CONTENTS.name = fn
+
+        @contextlib.contextmanager
+        def stdin_wrapper():
+            yield STDIN_CONTENTS
+        return stdin_wrapper()
+    else:
+        return open(fn, 'rb')
 
 
 def open_file_for_write(fn):
-    return open(fn, 'wb')
+    if CONFIG['filter_mode']:
+        return sys.stdout
+    else:
+        return open(fn, 'wb')
 
 
 def validate_file_with_rules(fname, rules):
@@ -765,6 +782,7 @@ def main():
             print 'Filter only expects exactly one file name/path'
             sys.exit(2)
         CONFIG['filter_mode'] = True
+        CONFIG['create_backup'] = False
 
     for f in args.files:
         if args.recursive and os.path.isdir(f):
