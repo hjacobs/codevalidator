@@ -642,6 +642,7 @@ def open_file_for_read(fn):
 
         @contextlib.contextmanager
         def stdin_wrapper():
+            STDIN_CONTENTS.seek(0)
             yield STDIN_CONTENTS
         return stdin_wrapper()
     else:
@@ -798,11 +799,17 @@ def main():
 
         f = args.files[0]
         validate_file(f)
-        if VALIDATION_ERRORS and args.fix:
-            if fix_file(f, [rule for (_fn, rule) in VALIDATION_ERRORS]):
-                sys.exit(0)
+        if args.fix:
+            if VALIDATION_ERRORS:
+                if fix_file(f, [rule for (_fn, rule) in VALIDATION_ERRORS]):
+                    sys.exit(0)
+                else:
+                    sys.exit(1)
             else:
-                sys.exit(1)
+                # just copy STDIN to STDOUT
+                with open_file_for_read(f) as stdin:
+                    with open_file_for_write(f) as stdout:
+                        stdout.write(stdin.read())
     else:
 
         for f in args.files:
