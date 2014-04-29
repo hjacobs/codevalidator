@@ -58,6 +58,16 @@ Using the filter mode to "fix" stdin and write to stdout:
 
 If you are annoyed by the .XX.pre-cvfix backup files you can disable them either on the command line (`--no-backup`) or in the config file.
 
+Advanced Usages
+---------------
+
+You can use the `--fix --filter` combination to directly filter your current buffer in VIM:
+
+    :%!codevalidator.py --fix --filter %
+
+The `--fix --filter` was also designed to be used with [GIT filters].
+
+
 Known Issues
 ------------
 
@@ -69,3 +79,4 @@ Known Issues
 [pyflakes]:             https://pypi.python.org/pypi/pyflakes
 [Jalopy]:               http://www.triemax.com/products/jalopy/
 [dict comprehensions]:  http://www.python.org/dev/peps/pep-0274/
+[GIT filters]:          https://www.kernel.org/pub/software/scm/git/docs/gitattributes.html
