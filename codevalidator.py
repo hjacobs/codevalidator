@@ -81,6 +81,7 @@ DEFAULT_CONFIG = {
     'create_backup': True,
     'backup_filename': '.{original}.pre-cvfix',
     'verbose': 0,
+    'filter_mode': False,
 }
 
 CONFIG = DEFAULT_CONFIG
@@ -626,8 +627,16 @@ def validate_file_dir_rules(fname):
                 _error(fname, rule, func, res)
 
 
+def open_file_for_read(fn):
+    return open(fn, 'rb')
+
+
+def open_file_for_write(fn):
+    return open(fn, 'wb')
+
+
 def validate_file_with_rules(fname, rules):
-    with open(fname, 'rb') as fd:
+    with open_file_for_read(fname) as fd:
         for rule in rules:
             logging.debug('Validating %s with %s..', fname, rule)
             fd.seek(0)
@@ -678,7 +687,7 @@ def fix_file(fname, rules):
     if CONFIG.get('create_backup', True):
         dirname, basename = os.path.split(fname)
         shutil.copy2(fname, os.path.join(dirname, CONFIG['backup_filename'].format(original=basename)))  # creates a backup
-    with open(fname, 'rb') as fd:
+    with open_file_for_read(fname) as fd:
         dst = fd
         for rule in rules:
             func = globals().get('_fix_' + rule)
@@ -703,7 +712,7 @@ def fix_file(fname, rules):
     # a) is not worth it
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
-        with open(fname, 'wb') as fd:
+        with open_file_for_write(fname) as fd:
             fd.write(fixed)
     else:
         print '{0}: ERROR fixing file. File remained unchanged'.format(fname)
@@ -733,6 +742,9 @@ def main():
     parser.add_argument('-a', '--apply', metavar='RULE', action='append', help='apply the given rule(s)')
     parser.add_argument('-v', '--verbose', action='count', help='print more detailed error information (-vv for debug)')
     parser.add_argument('--no-backup', action='store_true', help='for --fix: do not create a backup file')
+    parser.add_argument('--filter', action='store_true',
+                        help='special mode to read from STDIN and write to STDOUT, uses provided file name to find matching rules'
+                        )
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
@@ -747,6 +759,12 @@ def main():
             logging.basicConfig(level=logging.DEBUG, format='%(levelname)s %(message)s')
     if args.no_backup:
         CONFIG['create_backup'] = False
+
+    if args.filter:
+        if len(args.files) > 1:
+            print 'Filter only expects exactly one file name/path'
+            sys.exit(2)
+        CONFIG['filter_mode'] = True
 
     for f in args.files:
         if args.recursive and os.path.isdir(f):
