@@ -52,6 +52,9 @@ Running in very verbose (debug) mode to see what is validated:
 
     ./codevalidator.py -vvrc test/config.json test
 
+Using the filter mode to "fix" stdin and write to stdout:
+
+    echo 'print 1' | ./codevalidator.py --fix --filter foobar.py && echo success
 
 If you are annoyed by the .XX.pre-cvfix backup files you can disable them either on the command line (`--no-backup`) or in the config file.
 

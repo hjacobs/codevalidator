@@ -7,6 +7,8 @@ Simple source code validator with file reformatting option (remove trailing WS, 
 written by Henning Jacobs <henning@jacobs1.de>
 """
 
+from __future__ import print_function
+
 from StringIO import StringIO
 from collections import defaultdict
 
@@ -83,6 +85,7 @@ DEFAULT_CONFIG = {
     'backup_filename': '.{original}.pre-cvfix',
     'verbose': 0,
     'filter_mode': False,
+    'quiet': False,
 }
 
 CONFIG = DEFAULT_CONFIG
@@ -588,15 +591,15 @@ def _error(fname, rule, func, message=None):
 
     if not message:
         message = func.message
-    print '{0}: {1}'.format(fname, message % CONFIG.get('options', {}).get(rule, {}))
+    notify('{0}: {1}'.format(fname, message % CONFIG.get('options', {}).get(rule, {})))
     if CONFIG['verbose']:
         for message, line, column in VALIDATION_DETAILS:
             if line and column:
-                print '  line {0}, col {1}: {2}'.format(line, column, message)
+                notify('  line {0}, col {1}: {2}'.format(line, column, message))
             elif line:
-                print '  line {0}: {1}'.format(line, message)
+                notify('  line {0}: {1}'.format(line, message))
             else:
-                print '  {0}'.format(message)
+                notify('  {0}'.format(message))
     VALIDATION_DETAILS[:] = []
     VALIDATION_ERRORS.append((fname, rule))
 
@@ -613,7 +616,7 @@ def validate_file_dir_rules(fname):
         logging.debug('Validating %s with %s..', fname, rule)
         func = globals().get('_validate_' + rule)
         if not func:
-            print rule, 'does not exist'
+            notify(rule, 'does not exist')
             continue
         options = CONFIG.get('options', {}).get(rule)
         try:
@@ -652,6 +655,11 @@ def open_file_for_write(fn):
         return open(fn, 'wb')
 
 
+def notify(*args):
+    if not CONFIG['quiet']:
+        print(*args)
+
+
 def validate_file_with_rules(fname, rules):
     with open_file_for_read(fname) as fd:
         for rule in rules:
@@ -659,7 +667,7 @@ def validate_file_with_rules(fname, rules):
             fd.seek(0)
             func = globals().get('_validate_' + rule)
             if not func:
-                print rule, 'does not exist'
+                notify(rule, 'does not exist')
                 continue
             options = CONFIG.get('options', {}).get(rule)
             try:
@@ -709,7 +717,7 @@ def fix_file(fname, rules):
         for rule in rules:
             func = globals().get('_fix_' + rule)
             if func:
-                print '{0}: Trying to fix {1}..'.format(fname, rule)
+                notify('{0}: Trying to fix {1}..'.format(fname, rule))
                 options = CONFIG.get('options', {}).get(rule)
                 src = dst
                 dst = StringIO()
@@ -722,17 +730,19 @@ def fix_file(fname, rules):
                     was_fixed &= True
                 except Exception, e:
                     was_fixed = False
-                    print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
+                    notify('{0}: ERROR fixing {1}: {2}'.format(fname, rule, e))
 
     fixed = (dst.getvalue() if hasattr(dst, 'getvalue') else '')
-    # if the lenght of the fixed code is 0 we don't write the fixed version because either:
+    # if the length of the fixed code is 0 we don't write the fixed version because either:
     # a) is not worth it
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
         with open_file_for_write(fname) as fd:
             fd.write(fixed)
+        return True
     else:
-        print '{0}: ERROR fixing file. File remained unchanged'.format(fname)
+        notify('{0}: ERROR fixing file. File remained unchanged'.format(fname))
+        return False
 
 
 def fix_files():
@@ -779,22 +789,33 @@ def main():
 
     if args.filter:
         if len(args.files) > 1:
-            print 'Filter only expects exactly one file name/path'
+            notify('Filter only expects exactly one file name/path')
             sys.exit(2)
         CONFIG['filter_mode'] = True
+        # --fix and --filter imply quiet mode as we either print messages or output fixed file (but not both at the same time)
+        CONFIG['quiet'] = args.fix
         CONFIG['create_backup'] = False
 
-    for f in args.files:
-        if args.recursive and os.path.isdir(f):
-            validate_directory(f)
-        elif args.apply:
-            fix_file(f, args.apply)
-        else:
-            validate_file(f)
-    if VALIDATION_ERRORS:
-        if args.fix:
-            fix_files()
-        sys.exit(1)
+        f = args.files[0]
+        validate_file(f)
+        if VALIDATION_ERRORS and args.fix:
+            if fix_file(f, [rule for (_fn, rule) in VALIDATION_ERRORS]):
+                sys.exit(0)
+            else:
+                sys.exit(1)
+    else:
+
+        for f in args.files:
+            if args.recursive and os.path.isdir(f):
+                validate_directory(f)
+            elif args.apply:
+                fix_file(f, args.apply)
+            else:
+                validate_file(f)
+        if VALIDATION_ERRORS:
+            if args.fix:
+                fix_files()
+            sys.exit(1)
 
 
 if __name__ == '__main__':
