@@ -68,6 +68,10 @@ You can use the ``--fix --filter`` combination to directly filter your current b
 
 The ``--fix --filter`` was also designed to be used with `GIT filters`_.
 
+To apply a formatting rule once without changing you configuration file, you can use the ``-a`` option. Formatting a Python file once with the ``pythontidy`` rule looks like::
+
+    ./codevalidator.py -a pythontidy myfile.py
+
 
 Known Issues
 ------------
