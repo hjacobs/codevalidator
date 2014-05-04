@@ -77,12 +77,8 @@ DEFAULT_CONFIG = {
         '*.yml': DEFAULT_RULES + ['yaml'],
         '*pom.xml': ['pomdesc'],
     },
-    'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}, 'pep8': {
-        'max_line_length': 120,
-        'ignore': 'N806',
-        'passes': 5,
-        'select': 'e501',
-    }, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
+    'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}, 'pep8': {'max_line_length': 120, 'ignore': 'N806',
+                'passes': 5}, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
     'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'], 'database': ['database_dir']},
     'create_backup': True,
     'backup_filename': '.{original}.pre-cvfix',
@@ -346,16 +342,21 @@ def _fix_pep8(src, dst, options):
     else:
         source = src.getvalue()
 
-    class OptionsClass:
+    class OptionsClass(object):
 
-        select = options['select']
-        ignore = options['ignore']
-        pep8_passes = options['passes']
-        max_line_length = options['max_line_length']
+        '''Helper class for autopep8 options, just return None for unknown/new options'''
+
+        select = options.get('select')
+        ignore = options.get('ignore')
+        pep8_passes = options.get('passes')
+        max_line_length = options.get('max_line_length')
         verbose = False
         aggressive = True
 
-    fixed = autopep8.fix_code(source, options=OptionsClass)
+        def __getattr__(self, name):
+            return self.__dict__.get(name)
+
+    fixed = autopep8.fix_code(source, options=OptionsClass())
     dst.write(fixed)
 
 
