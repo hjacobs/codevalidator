@@ -74,6 +74,14 @@ Using the filter mode to "fix" stdin and write to stdout::
 
 If you are annoyed by the .XX.pre-cvfix backup files you can disable them either on the command line (``--no-backup``) or in the config file.
 
+Configuration
+-------------
+
+Codevalidator uses a mapping of file name patterns to "rules" in order to know which validation rules should be applied for a certain file.
+The script contains a more-or-less sane default configuration (see ``DEFAULT_CONFIG`` at the top of ``codevalidator.py``).
+You can overwrite the configuration by putting a ``.codevalidatorrc`` file in your home directory.
+The file must be JSON and must have the same structure as ``DEFAULT_CONFIG``.
+
 Advanced Usages
 ---------------
 
