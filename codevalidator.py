@@ -64,6 +64,7 @@ DEFAULT_CONFIG = {
         '*.pp': DEFAULT_RULES + ['puppet'],
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
+        '*.rst': DEFAULT_RULES,
         '*.sh': DEFAULT_RULES,
         '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_semi_colon'],
         '*.sql_diff': DEFAULT_RULES,
@@ -72,6 +73,8 @@ DEFAULT_CONFIG = {
         '*.vm': DEFAULT_RULES,
         '*.wsdl': DEFAULT_RULES,
         '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
+        '*.yaml': DEFAULT_RULES + ['yaml'],
+        '*.yml': DEFAULT_RULES + ['yaml'],
         '*pom.xml': ['pomdesc'],
     },
     'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}, 'pep8': {
@@ -254,6 +257,17 @@ def _fix_xmlfmt(src, dst):
 def _validate_json(fd):
     try:
         json.load(fd)
+    except Exception, e:
+        _detail('%s: %s' % (e.__class__.__name__, e))
+        return False
+    return True
+
+
+@message('is not valid YAML')
+def _validate_yaml(fd):
+    import yaml
+    try:
+        yaml.safe_load(fd)
     except Exception, e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False

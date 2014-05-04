@@ -1,0 +1,5 @@
+---
+valid: "key: here"
+a: invalid: c
+another: 123
+foo: bar

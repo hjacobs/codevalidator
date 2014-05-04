@@ -20,11 +20,26 @@ Requirements
 * Puppet (for Puppet manifest validation)
 * sqlparse
 * jshint (for JavaScript checking)
+* PyYAML (for YAML checking)
 
 On Ubuntu you can install most packages easily::
 
     sudo apt-get install python-lxml pep8 pyflakes nodejs npm
     sudo npm install -g jshint
+
+Installation
+------------
+
+There are at least two ways of installing codevalidator:
+
+* Alternative 1: Use the codevalidator source tree directly (i.e. clone the GIT repo and put codevalidator.py in your ``PATH``)::
+
+    git clone https://github.com/hjacobs/codevalidator.git
+    sudo ln -s codevalidator/codevalidator.py /usr/local/bin/codevalidator.py
+
+* Alternative 2: Install codevalidator from PyPI using PIP::
+
+    sudo pip install codevalidator
 
 Getting Started
 ---------------
