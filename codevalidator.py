@@ -355,7 +355,7 @@ def _fix_pep8(src, dst, options):
         verbose = False
         aggressive = True
 
-    fixed = autopep8.fix_string(source, options=OptionsClass)
+    fixed = autopep8.fix_code(source, options=OptionsClass)
     dst.write(fixed)
 
 
