@@ -47,10 +47,13 @@ DEFAULT_CONFIG = {
     'exclude_dirs': ['.svn', '.git'],
     'exclude_files': ['.*.swp'],
     'rules': {
+        '*.c': DEFAULT_RULES,
         '*.coffee': DEFAULT_RULES + ['coffeelint'],
         '*.conf': DEFAULT_RULES,
+        '*.cpp': DEFAULT_RULES,
         '*.css': DEFAULT_RULES,
         '*.groovy': DEFAULT_RULES,
+        '*.h': DEFAULT_RULES,
         '*.htm': DEFAULT_RULES,
         '*.html': DEFAULT_RULES,
         '*.java': DEFAULT_RULES + ['jalopy'],
