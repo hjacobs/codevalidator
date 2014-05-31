@@ -35,6 +35,8 @@ NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
 INDENTATION = '    '
 
+DEFAULT_CONFIG_PATHS = ['~/.codevalidatorrc', '/etc/codevalidatorrc']
+
 DEFAULT_RULES = [
     'utf8',
     'nobom',
@@ -783,7 +785,8 @@ def get_dirs(path):
 def main():
     parser = argparse.ArgumentParser(description='Validate source code files and optionally reformat them.')
     parser.add_argument('-r', '--recursive', action='store_true', help='process given directories recursively')
-    parser.add_argument('-c', '--config', help='use custom configuration file (default: ~/.codevalidatorrc)')
+    parser.add_argument('-c', '--config',
+                        help='use custom configuration file (default: ~/.codevalidatorrc or /etc/codevalidatorrc)')
     parser.add_argument('-f', '--fix', action='store_true', help='try to fix validation errors (by reformatting files)')
     parser.add_argument('-a', '--apply', metavar='RULE', action='append', help='apply the given rule(s)')
     parser.add_argument('-v', '--verbose', action='count', help='print more detailed error information (-vv for debug)')
@@ -794,9 +797,10 @@ def main():
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
-    config_file = os.path.expanduser('~/.codevalidatorrc')
-    if os.path.isfile(config_file) and not args.config:
-        args.config = config_file
+    for path in DEFAULT_CONFIG_PATHS:
+        config_file = os.path.expanduser(path)
+        if os.path.isfile(config_file) and not args.config:
+            args.config = config_file
     if args.config:
         CONFIG.update(json.load(open(args.config, 'rb')))
     if args.verbose:
