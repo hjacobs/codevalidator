@@ -268,7 +268,7 @@ def _validate_json(fd):
 def _validate_yaml(fd):
     import yaml
     try:
-        yaml.safe_load(fd)
+        list(yaml.safe_load_all(fd))
     except Exception, e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
