@@ -297,9 +297,9 @@ def _validate_pep8(fd, options):
 def __jalopy(original, options):
     jalopy_config = options.get('config')
     java_bin = options.get('java_bin', '/usr/bin/java')
-    
+
     if not os.path.isfile(java_bin):
-    	raise ConfigurationError('Jalopy java_bin option is invalid, %s does not exist' % java_bin)
+        raise ConfigurationError('Jalopy java_bin option is invalid, %s does not exist' % java_bin)
 
     classpath = options.get('classpath')
 
