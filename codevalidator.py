@@ -7,14 +7,18 @@ Simple source code validator with file reformatting option (remove trailing WS, 
 written by Henning Jacobs <henning@jacobs1.de>
 """
 
-from cStringIO import StringIO
+from __future__ import print_function
+
+from StringIO import StringIO
 from collections import defaultdict
 
 from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import fromstring as xmlfromstring
 import argparse
 import ast
+import contextlib
 import csv
 import fnmatch
 import json
@@ -31,6 +35,8 @@ NOT_SPACE = re.compile('[^ ]')
 TRAILING_WHITESPACE_CHARS = set(' \t')
 INDENTATION = '    '
 
+DEFAULT_CONFIG_PATHS = ['~/.codevalidatorrc', '/etc/codevalidatorrc']
+
 DEFAULT_RULES = [
     'utf8',
     'nobom',
@@ -43,14 +49,17 @@ DEFAULT_CONFIG = {
     'exclude_dirs': ['.svn', '.git'],
     'exclude_files': ['.*.swp'],
     'rules': {
+        '*.c': DEFAULT_RULES,
         '*.coffee': DEFAULT_RULES + ['coffeelint'],
         '*.conf': DEFAULT_RULES,
+        '*.cpp': DEFAULT_RULES,
         '*.css': DEFAULT_RULES,
         '*.groovy': DEFAULT_RULES,
+        '*.h': DEFAULT_RULES,
         '*.htm': DEFAULT_RULES,
         '*.html': DEFAULT_RULES,
         '*.java': DEFAULT_RULES + ['jalopy'],
-        '*.js': DEFAULT_RULES,
+        '*.js': DEFAULT_RULES + ['jshint'],
         '*.json': DEFAULT_RULES + ['json'],
         '*.jsp': DEFAULT_RULES,
         '*.less': DEFAULT_RULES,
@@ -60,6 +69,7 @@ DEFAULT_CONFIG = {
         '*.pp': DEFAULT_RULES + ['puppet'],
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
+        '*.rst': DEFAULT_RULES,
         '*.sh': DEFAULT_RULES,
         '*.sql': DEFAULT_RULES + ['sql_last_line', 'sql_semi_colon'],
         '*.sql_diff': DEFAULT_RULES + ['sql_last_line', 'sql_semi_colon'],
@@ -68,18 +78,18 @@ DEFAULT_CONFIG = {
         '*.vm': DEFAULT_RULES,
         '*.wsdl': DEFAULT_RULES,
         '*.xml': DEFAULT_RULES + ['xml', 'xmlfmt'],
+        '*.yaml': DEFAULT_RULES + ['yaml'],
+        '*.yml': DEFAULT_RULES + ['yaml'],
         '*pom.xml': ['pomdesc'],
     },
-    'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}, 'pep8': {
-        'max_line_length': 120,
-        'ignore': 'N806',
-        'passes': 5,
-        'select': 'e501',
-    }, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
+    'options': {'phpcs': {'standard': 'PSR', 'encoding': 'UTF-8'}, 'pep8': {'max_line_length': 120, 'ignore': 'N806',
+                'passes': 5}, 'jalopy': {'classpath': '/opt/jalopy/lib/jalopy-1.9.4.jar:/opt/jalopy/lib/jh.jar'}},
     'dir_rules': {'db_diffs': ['sql_diff_dir', 'sql_diff_sql'], 'database': ['database_dir']},
     'create_backup': True,
     'backup_filename': '.{original}.pre-cvfix',
     'verbose': 0,
+    'filter_mode': False,
+    'quiet': False,
 }
 
 CONFIG = DEFAULT_CONFIG
@@ -88,6 +98,8 @@ CONFIG = DEFAULT_CONFIG
 # NOTE: to support symlinking codevalidator.py into /usr/local/bin/
 # we use realpath to resolve the symlink back to our base directory
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
+STDIN_CONTENTS = None
 
 
 class BaseException(Exception):
@@ -252,6 +264,17 @@ def _validate_json(fd):
     return True
 
 
+@message('is not valid YAML')
+def _validate_yaml(fd):
+    import yaml
+    try:
+        list(yaml.safe_load_all(fd))
+    except Exception, e:
+        _detail('%s: %s' % (e.__class__.__name__, e))
+        return False
+    return True
+
+
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
     source = StringIO(fd.read())
@@ -274,6 +297,10 @@ def _validate_pep8(fd, options):
 def __jalopy(original, options):
     jalopy_config = options.get('config')
     java_bin = options.get('java_bin', '/usr/bin/java')
+
+    if not os.path.isfile(java_bin):
+        raise ConfigurationError('Jalopy java_bin option is invalid, %s does not exist' % java_bin)
+
     classpath = options.get('classpath')
 
     if not classpath:
@@ -324,16 +351,21 @@ def _fix_pep8(src, dst, options):
     else:
         source = src.getvalue()
 
-    class OptionsClass:
+    class OptionsClass(object):
 
-        select = options['select']
-        ignore = options['ignore']
-        pep8_passes = options['passes']
-        max_line_length = options['max_line_length']
+        '''Helper class for autopep8 options, just return None for unknown/new options'''
+
+        select = options.get('select')
+        ignore = options.get('ignore')
+        pep8_passes = options.get('passes')
+        max_line_length = options.get('max_line_length')
         verbose = False
         aggressive = True
 
-    fixed = autopep8.fix_string(source, options=OptionsClass)
+        def __getattr__(self, name):
+            return self.__dict__.get(name)
+
+    fixed = autopep8.fix_code(source, options=OptionsClass())
     dst.write(fixed)
 
 
@@ -354,6 +386,25 @@ def _validate_phpcs(fd, options):
         valid = False
         _detail(row['Message'], line=row['Line'], column=row['Column'])
     return valid
+
+
+@message('has jshint warnings/errors')
+def _validate_jshint(fd, options=None):
+    cfgfile = os.path.join(BASE_DIR, 'config/jshint.json')
+    po = subprocess.Popen([
+        'jshint',
+        '--reporter=jslint',
+        '--config',
+        cfgfile,
+        '-',
+    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = po.communicate(input=fd.read())
+    tree = xmlfromstring(output)
+    has_errors = False
+    for elem in tree.findall('.//issue'):
+        _detail(elem.attrib['reason'], line=elem.attrib['line'], column=elem.attrib['char'])
+        has_errors = True
+    return not has_errors
 
 
 @message('fails coffeelint validation')
@@ -564,15 +615,15 @@ def _error(fname, rule, func, message=None):
 
     if not message:
         message = func.message
-    print '{0}: {1}'.format(fname, message % CONFIG.get('options', {}).get(rule, {}))
+    notify('{0}: {1}'.format(fname, message % CONFIG.get('options', {}).get(rule, {})))
     if CONFIG['verbose']:
         for message, line, column in VALIDATION_DETAILS:
             if line and column:
-                print '  line {0}, col {1}: {2}'.format(line, column, message)
+                notify('  line {0}, col {1}: {2}'.format(line, column, message))
             elif line:
-                print '  line {0}: {1}'.format(line, message)
+                notify('  line {0}: {1}'.format(line, message))
             else:
-                print '  {0}'.format(message)
+                notify('  {0}'.format(message))
     VALIDATION_DETAILS[:] = []
     VALIDATION_ERRORS.append((fname, rule))
 
@@ -589,7 +640,7 @@ def validate_file_dir_rules(fname):
         logging.debug('Validating %s with %s..', fname, rule)
         func = globals().get('_validate_' + rule)
         if not func:
-            print rule, 'does not exist'
+            notify(rule, 'does not exist')
             continue
         options = CONFIG.get('options', {}).get(rule)
         try:
@@ -606,14 +657,42 @@ def validate_file_dir_rules(fname):
                 _error(fname, rule, func, res)
 
 
+def open_file_for_read(fn):
+    global STDIN_CONTENTS
+    if CONFIG['filter_mode']:
+        if STDIN_CONTENTS is None:
+            STDIN_CONTENTS = StringIO(sys.stdin.read())
+            STDIN_CONTENTS.name = fn
+
+        @contextlib.contextmanager
+        def stdin_wrapper():
+            STDIN_CONTENTS.seek(0)
+            yield STDIN_CONTENTS
+        return stdin_wrapper()
+    else:
+        return open(fn, 'rb')
+
+
+def open_file_for_write(fn):
+    if CONFIG['filter_mode']:
+        return sys.stdout
+    else:
+        return open(fn, 'wb')
+
+
+def notify(*args):
+    if not CONFIG['quiet']:
+        print(*args)
+
+
 def validate_file_with_rules(fname, rules):
-    with open(fname, 'rb') as fd:
+    with open_file_for_read(fname) as fd:
         for rule in rules:
             logging.debug('Validating %s with %s..', fname, rule)
             fd.seek(0)
             func = globals().get('_validate_' + rule)
             if not func:
-                print rule, 'does not exist'
+                notify(rule, 'does not exist')
                 continue
             options = CONFIG.get('options', {}).get(rule)
             try:
@@ -658,12 +737,12 @@ def fix_file(fname, rules):
     if CONFIG.get('create_backup', True):
         dirname, basename = os.path.split(fname)
         shutil.copy2(fname, os.path.join(dirname, CONFIG['backup_filename'].format(original=basename)))  # creates a backup
-    with open(fname, 'rb') as fd:
+    with open_file_for_read(fname) as fd:
         dst = fd
         for rule in rules:
             func = globals().get('_fix_' + rule)
             if func:
-                print '{0}: Trying to fix {1}..'.format(fname, rule)
+                notify('{0}: Trying to fix {1}..'.format(fname, rule))
                 options = CONFIG.get('options', {}).get(rule)
                 src = dst
                 dst = StringIO()
@@ -676,17 +755,19 @@ def fix_file(fname, rules):
                     was_fixed &= True
                 except Exception, e:
                     was_fixed = False
-                    print '{0}: ERROR fixing {1}: {2}'.format(fname, rule, e)
+                    notify('{0}: ERROR fixing {1}: {2}'.format(fname, rule, e))
 
     fixed = (dst.getvalue() if hasattr(dst, 'getvalue') else '')
-    # if the lenght of the fixed code is 0 we don't write the fixed version because either:
+    # if the length of the fixed code is 0 we don't write the fixed version because either:
     # a) is not worth it
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
-        with open(fname, 'wb') as fd:
+        with open_file_for_write(fname) as fd:
             fd.write(fixed)
+        return True
     else:
-        print '{0}: ERROR fixing file. File remained unchanged'.format(fname)
+        notify('{0}: ERROR fixing file. File remained unchanged'.format(fname))
+        return False
 
 
 def fix_files():
@@ -708,17 +789,22 @@ def get_dirs(path):
 def main():
     parser = argparse.ArgumentParser(description='Validate source code files and optionally reformat them.')
     parser.add_argument('-r', '--recursive', action='store_true', help='process given directories recursively')
-    parser.add_argument('-c', '--config', help='use custom configuration file (default: ~/.codevalidatorrc)')
+    parser.add_argument('-c', '--config',
+                        help='use custom configuration file (default: ~/.codevalidatorrc or /etc/codevalidatorrc)')
     parser.add_argument('-f', '--fix', action='store_true', help='try to fix validation errors (by reformatting files)')
     parser.add_argument('-a', '--apply', metavar='RULE', action='append', help='apply the given rule(s)')
     parser.add_argument('-v', '--verbose', action='count', help='print more detailed error information (-vv for debug)')
     parser.add_argument('--no-backup', action='store_true', help='for --fix: do not create a backup file')
+    parser.add_argument('--filter', action='store_true',
+                        help='special mode to read from STDIN and write to STDOUT, uses provided file name to find matching rules'
+                        )
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
-    config_file = os.path.expanduser('~/.codevalidatorrc')
-    if os.path.isfile(config_file) and not args.config:
-        args.config = config_file
+    for path in DEFAULT_CONFIG_PATHS:
+        config_file = os.path.expanduser(path)
+        if os.path.isfile(config_file) and not args.config:
+            args.config = config_file
     if args.config:
         CONFIG.update(json.load(open(args.config, 'rb')))
     if args.verbose:
@@ -728,17 +814,41 @@ def main():
     if args.no_backup:
         CONFIG['create_backup'] = False
 
-    for f in args.files:
-        if args.recursive and os.path.isdir(f):
-            validate_directory(f)
-        elif args.apply:
-            fix_file(f, args.apply)
-        else:
-            validate_file(f)
-    if VALIDATION_ERRORS:
+    if args.filter:
+        if len(args.files) > 1:
+            notify('Filter only expects exactly one file name/path')
+            sys.exit(2)
+        CONFIG['filter_mode'] = True
+        # --fix and --filter imply quiet mode as we either print messages or output fixed file (but not both at the same time)
+        CONFIG['quiet'] = args.fix
+        CONFIG['create_backup'] = False
+
+        f = args.files[0]
+        validate_file(f)
         if args.fix:
-            fix_files()
-        sys.exit(1)
+            if VALIDATION_ERRORS:
+                if fix_file(f, [rule for (_fn, rule) in VALIDATION_ERRORS]):
+                    sys.exit(0)
+                else:
+                    sys.exit(1)
+            else:
+                # just copy STDIN to STDOUT
+                with open_file_for_read(f) as stdin:
+                    with open_file_for_write(f) as stdout:
+                        stdout.write(stdin.read())
+    else:
+
+        for f in args.files:
+            if args.recursive and os.path.isdir(f):
+                validate_directory(f)
+            elif args.apply:
+                fix_file(f, args.apply)
+            else:
+                validate_file(f)
+        if VALIDATION_ERRORS:
+            if args.fix:
+                fix_files()
+            sys.exit(1)
 
 
 if __name__ == '__main__':
