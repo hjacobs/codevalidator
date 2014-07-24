@@ -415,7 +415,7 @@ def _validate_coffeelint(fd, options=None):
     """
 
     cfgfile = os.path.join(BASE_DIR, 'config/coffeelint.json')
-    po = subprocess.Popen('coffeelint --csv -s -f %s' % cfgfile, shell=True, stdin=subprocess.PIPE,
+    po = subprocess.Popen('coffeelint --reporter csv -s -f %s' % cfgfile, shell=True, stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, stderr = po.communicate(input=fd.read())
     valid = True
@@ -423,7 +423,7 @@ def _validate_coffeelint(fd, options=None):
         valid = False
         _detail(stderr)
     for row in output.split('\n'):
-        if row:
+        if row and row != 'path,lineNumber,lineNumberEnd,level,message':
             valid = False
             cols = row.split(',')
             if len(cols) > 3:
