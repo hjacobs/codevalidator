@@ -296,8 +296,10 @@ def _validate_pep8(fd, options):
 
 def __jalopy(original, options, use_nailgun=True):
     jalopy_config = options.get('config')
-    if use_nailgun:
-        java_bin = options.get('ng_bin', '/usr/local/bin/ng')
+    ng_bin = options.get('ng_bin', '/usr/local/bin/ng')
+
+    if use_nailgun and os.path.exists(ng_bin):
+        java_bin = ng_bin
     else:
         java_bin = options.get('java_bin', '/usr/bin/java')
 
