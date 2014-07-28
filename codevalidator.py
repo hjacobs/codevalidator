@@ -548,9 +548,15 @@ def _validate_database_dir(fname, options={}):
 
 
 def _validate_sql_diff_dir(fname, options=None):
-    allowed_file_types = ['*.sql_diff', '*.py', '*.yml']
+    allowed_file_types = [
+        '*.sql_diff',
+        '*.py',
+        '*.yml',
+        '*.txt',
+        '*.md',
+    ]
     if not any(fnmatch.fnmatch(fname, each) for each in allowed_file_types):
-        return 'dbdiffs and migration scripts should use .sql_diff, .py or .yml extension'
+        return 'dbdiffs and migration scripts should use .sql_diff, .py, .yml, .md or .txt extension'
 
     dirs = get_dirs(fname)
     basedir = dirs[-2]
