@@ -297,19 +297,18 @@ def _validate_pep8(fd, options):
 def __jalopy(original, options, use_nailgun=True):
     jalopy_config = options.get('config')
     ng_bin = options.get('ng_bin', '/usr/local/bin/ng')
-
-    if use_nailgun and os.path.exists(ng_bin):
-        java_bin = ng_bin
-    else:
-        java_bin = options.get('java_bin', '/usr/bin/java')
-
-    if not os.path.isfile(java_bin):
-        raise ConfigurationError('Jalopy java_bin option is invalid, %s does not exist' % java_bin)
-
     classpath = options.get('classpath')
 
-    if not classpath:
-        raise ConfigurationError('Jalopy classpath not set')
+    if use_nailgun and os.path.isfile(ng_bin):
+        java_bin = ng_bin
+        jalopy = [java_bin, 'Jalopy']
+    elif os.path.isfile(java_bin):
+        java_bin = options.get('java_bin', '/usr/bin/java')
+        jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
+        if not classpath:
+            raise ConfigurationError('Jalopy classpath not set')
+    else:
+        raise ConfigurationError('Jalopy java_bin option is invalid, %s does not exist' % java_bin)
 
     _env = {}
     _env.update(os.environ)
@@ -318,7 +317,6 @@ def __jalopy(original, options, use_nailgun=True):
     with NamedTemporaryFile(suffix='.java', delete=False) as f:
         f.write(original)
         f.flush()
-        jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
         config = (['--convention', jalopy_config] if jalopy_config else [])
         cmd = jalopy + config + [f.name]
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
