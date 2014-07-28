@@ -294,9 +294,12 @@ def _validate_pep8(fd, options):
     return check == 0
 
 
-def __jalopy(original, options):
+def __jalopy(original, options, use_nailgun=True):
     jalopy_config = options.get('config')
-    java_bin = options.get('java_bin', '/usr/bin/java')
+    if use_nailgun:
+        java_bin = options.get('ng_bin', '/usr/local/bin/ng')
+    else:
+        java_bin = options.get('java_bin', '/usr/bin/java')
 
     if not os.path.isfile(java_bin):
         raise ConfigurationError('Jalopy java_bin option is invalid, %s does not exist' % java_bin)
@@ -319,6 +322,9 @@ def __jalopy(original, options):
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
         stdout, stderr = j.communicate()
         if stderr or '[ERROR]' in stdout:
+            if stderr.strip() == 'connect: Connection refused':
+                # Fallback
+                return __jalopy(original, options, use_nailgun=False)
             raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
         if '[WARN]' in stdout:
             logging.info('Jalopy reports warnings: %s', stdout)
