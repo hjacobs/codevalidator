@@ -296,14 +296,14 @@ def _validate_pep8(fd, options):
 
 def __jalopy(original, options, use_nailgun=True):
     jalopy_config = options.get('config')
-    ng_bin = options.get('ng_bin', '/usr/local/bin/ng')
+    java_bin = options.get('java_bin', '/usr/bin/java')
+    ng_bin = options.get('ng_bin', '/usr/bin/ng-nailgun')
     classpath = options.get('classpath')
 
     if use_nailgun and os.path.isfile(ng_bin):
         java_bin = ng_bin
         jalopy = [java_bin, 'Jalopy']
     elif os.path.isfile(java_bin):
-        java_bin = options.get('java_bin', '/usr/bin/java')
         jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
         if not classpath:
             raise ConfigurationError('Jalopy classpath not set')
