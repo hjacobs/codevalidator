@@ -71,8 +71,8 @@ DEFAULT_CONFIG = {
         '*.py': DEFAULT_RULES + ['pep8', 'pyflakes'],
         '*.rst': DEFAULT_RULES,
         '*.sh': DEFAULT_RULES,
-        '*.sql': DEFAULT_RULES + ['sql_comment_last_line', 'sql_semi_colon'],
-        '*.sql_diff': DEFAULT_RULES,
+        '*.sql': DEFAULT_RULES + ['sql_last_line', 'sql_semi_colon'],
+        '*.sql_diff': DEFAULT_RULES + ['sql_last_line', 'sql_semi_colon'],
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
         '*.vm': DEFAULT_RULES,
@@ -421,7 +421,7 @@ def _validate_coffeelint(fd, options=None):
     """
 
     cfgfile = os.path.join(BASE_DIR, 'config/coffeelint.json')
-    po = subprocess.Popen('coffeelint --csv -s -f %s' % cfgfile, shell=True, stdin=subprocess.PIPE,
+    po = subprocess.Popen('coffeelint --reporter csv -s -f %s' % cfgfile, shell=True, stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, stderr = po.communicate(input=fd.read())
     valid = True
@@ -429,7 +429,7 @@ def _validate_coffeelint(fd, options=None):
         valid = False
         _detail(stderr)
     for row in output.split('\n'):
-        if row:
+        if row and row != 'path,lineNumber,lineNumberEnd,level,message':
             valid = False
             cols = row.split(',')
             if len(cols) > 3:
@@ -493,14 +493,14 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message('line comments ends with EOF')
-def _validate_sql_comment_last_line(fd, options={}):
+@message('doesn\'t end with a blank line')
+def _validate_sql_last_line(fd, options={}):
     sql_lines = fd.readlines()
-    last_line_is_a_comment = sql_lines[-1].startswith('--')
-    return not last_line_is_a_comment
+    last_line = (sql_lines[-1].strip() if sql_lines else '')
+    return not last_line
 
 
-def _fix_sql_comment_last_line(src, dst, options={}):
+def _fix_sql_last_line(src, dst, options={}):
     original = src.read()
     dst.write(original)
     dst.write('\n')
@@ -511,7 +511,7 @@ def _validate_sql_semi_colon(fd, options={}):
     import sqlparse
     sql = fd.read()
     sql_without_comments = sqlparse.format(sql, strip_comments=True).strip()
-    return sql_without_comments[-1] == ';'
+    return (sql_without_comments[-1] == ';' if sql_without_comments else True)
 
 
 def _fix_sql_semi_colon(src, dst, options={}):
