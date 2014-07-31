@@ -309,12 +309,10 @@ def __jalopy(original, options, use_nailgun=True, dest_dir=tempfile.mkdtemp('cvj
         jalopy = [
             java_bin,
             'Jalopy',
-            '--test',
-            '--dest',
+            '--flatdest',
             dest_dir,
             '--loglevel',
             'WARN',
-            '--',
         ]
     elif os.path.isfile(java_bin):
         jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
@@ -331,7 +329,7 @@ def __jalopy(original, options, use_nailgun=True, dest_dir=tempfile.mkdtemp('cvj
         f.write(original)
         f.flush()
         config = (['--convention', jalopy_config] if jalopy_config else [])
-        cmd = jalopy + config + [f.name]
+        cmd = jalopy + config + ['--', f.name]
         j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
         stdout, stderr = j.communicate()
         if stderr or '[ERROR]' in stdout:
@@ -341,8 +339,8 @@ def __jalopy(original, options, use_nailgun=True, dest_dir=tempfile.mkdtemp('cvj
             raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
         if '[WARN]' in stdout:
             logging.info('Jalopy reports warnings: %s', stdout)
-        f.seek(0)
-        result = f.read()
+        name = os.path.basename(f.name)
+        result = open(os.path.join(dest_dir, name)).read()
     shutil.rmtree(dest_dir)
     return result
 
