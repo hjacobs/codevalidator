@@ -296,6 +296,9 @@ def _validate_pep8(fd, options):
 
 
 def __jalopy(original, options, use_nailgun=True):
+    # a temporary destination dir is needed with nailgun to prevent multiple jalopy instances from interfering
+    # with each other, a temporary directory
+    dest_dir = tempfile.mkdtemp('cvjalopy')
     jalopy_config = options.get('config')
     java_bin = options.get('java_bin', '/usr/bin/java')
     ng_bin = options.get('ng_bin', '/usr/bin/ng-nailgun')
@@ -303,7 +306,8 @@ def __jalopy(original, options, use_nailgun=True):
 
     if use_nailgun and os.path.isfile(ng_bin):
         java_bin = ng_bin
-        jalopy = [java_bin, 'Jalopy']
+        # loglevel has to be WARN or otherwise we get exceptions when running multiple instances
+        jalopy = [java_bin, 'Jalopy', '--loglevel', 'WARN']
     elif os.path.isfile(java_bin):
         jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
         if not classpath:
@@ -315,22 +319,28 @@ def __jalopy(original, options, use_nailgun=True):
     _env.update(os.environ)
     _env['LANG'] = 'en_US.utf8'
     _env['LC_ALL'] = 'en_US.utf8'
-    with NamedTemporaryFile(suffix='.java', delete=False) as f:
-        f.write(original)
-        f.flush()
-        config = (['--convention', jalopy_config] if jalopy_config else [])
-        cmd = jalopy + config + [f.name]
-        j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
-        stdout, stderr = j.communicate()
-        if stderr or '[ERROR]' in stdout:
-            if stderr.strip() == 'connect: Connection refused':
-                # Fallback
-                return __jalopy(original, options, use_nailgun=False)
-            raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
-        if '[WARN]' in stdout:
-            logging.info('Jalopy reports warnings: %s', stdout)
-        f.seek(0)
-        result = f.read()
+    try:
+        with NamedTemporaryFile(suffix='.java', delete=False) as f:
+            f.write(original)
+            f.flush()
+            destination = ['--flatdest', dest_dir]
+            config = (['--convention', jalopy_config] if jalopy_config else [])
+            cmd = jalopy + destination + config + ['--', f.name]
+            j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
+            stdout, stderr = j.communicate()
+            if stderr or '[ERROR]' in stdout:
+                if stderr.strip() == 'connect: Connection refused':
+                    # Fallback
+                    return __jalopy(original, options, use_nailgun=False)
+                raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
+            if '[WARN]' in stdout:
+                logging.info('Jalopy reports warnings: %s', stdout)
+            name = os.path.basename(f.name)
+            result = open(os.path.join(dest_dir, name)).read()
+    except:
+        result = ''
+    finally:
+        shutil.rmtree(dest_dir, True)
     return result
 
 
