@@ -337,9 +337,10 @@ def __jalopy(original, options, use_nailgun=True):
                 logging.info('Jalopy reports warnings: %s', stdout)
             name = os.path.basename(f.name)
             result = open(os.path.join(dest_dir, name)).read()
+    except:
+        result = ''
     finally:
         shutil.rmtree(dest_dir, True)
-        result = ''
     return result
 
 
