@@ -295,7 +295,9 @@ def _validate_pep8(fd, options):
     return check == 0
 
 
-def __jalopy(original, options, use_nailgun=True):
+def __jalopy(original, options, use_nailgun=True, dest_dir=tempfile.mkdtemp('cvjalopy')):
+    # a temporary destination dir is needed with nailgun to prevent multiple jalopy instances from interfering
+    # with each other, a temporary directory
     jalopy_config = options.get('config')
     java_bin = options.get('java_bin', '/usr/bin/java')
     ng_bin = options.get('ng_bin', '/usr/bin/ng-nailgun')
@@ -303,7 +305,17 @@ def __jalopy(original, options, use_nailgun=True):
 
     if use_nailgun and os.path.isfile(ng_bin):
         java_bin = ng_bin
-        jalopy = [java_bin, 'Jalopy']
+        # loglevel has to be WARN or otherwise we get exceptions when running multiple instances
+        jalopy = [
+            java_bin,
+            'Jalopy',
+            '--test',
+            '--dest',
+            dest_dir,
+            '--loglevel',
+            'WARN',
+            '--',
+        ]
     elif os.path.isfile(java_bin):
         jalopy = [java_bin, '-classpath', classpath, 'Jalopy']
         if not classpath:
@@ -331,6 +343,7 @@ def __jalopy(original, options, use_nailgun=True):
             logging.info('Jalopy reports warnings: %s', stdout)
         f.seek(0)
         result = f.read()
+    shutil.rmtree(dest_dir)
     return result
 
 
