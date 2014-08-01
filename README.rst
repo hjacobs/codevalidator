@@ -24,14 +24,14 @@ Requirements
 
 On Ubuntu you can install most packages easily::
 
-    sudo apt-get install python-lxml pep8 pyflakes nodejs npm
+    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml
     sudo npm install -g jshint
 
-If you are using Jalopy, for better performance also install Nailgun:
+If you are using Jalopy, for better performance also install Nailgun::
 
     sudo apt-get install nailgun
 
-And start the nailgun server with:
+And start the nailgun server with::
 
     java -cp /usr/share/java/nailgun-0.9.0.jar:/opt/jalopy/lib/jalopy-1.9.4.jar -server com.martiansoftware.nailgun.NGServer
 
