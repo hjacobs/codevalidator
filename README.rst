@@ -49,6 +49,14 @@ There are at least two ways of installing codevalidator:
 
     sudo pip install codevalidator
 
+* Alternative 3: Use Docker_ to get all dependencies and to run codevalidator without messing with your local system::
+
+    docker build -t codevalidator .
+    # we can mount the current directory into "workdir" volume to validate the local directory recursively
+    docker run -v `pwd`:/workdir -t codevalidator -rvv /workdir/
+
+
+
 Getting Started
 ---------------
 
@@ -116,3 +124,4 @@ Known Issues
 .. _Jalopy:               http://www.triemax.com/products/jalopy/
 .. _dict comprehensions:  http://www.python.org/dev/peps/pep-0274/
 .. _GIT filters:          https://www.kernel.org/pub/software/scm/git/docs/gitattributes.html
+.. _Docker:               https://www.docker.com/

@@ -72,8 +72,8 @@ DEFAULT_CONFIG = {
         '*.rst': DEFAULT_RULES,
         '* *': ['invalidpath'],
         '*.sh': DEFAULT_RULES,
-        '*.sql': DEFAULT_RULES + ['sql_last_line', 'sql_semi_colon'],
-        '*.sql_diff': DEFAULT_RULES + ['sql_last_line', 'sql_semi_colon'],
+        '*.sql': DEFAULT_RULES + ['sql_semi_colon'],
+        '*.sql_diff': DEFAULT_RULES + ['sql_semi_colon'],
         '*.styl': DEFAULT_RULES,
         '*.txt': DEFAULT_RULES,
         '*.vm': DEFAULT_RULES,
@@ -504,19 +504,6 @@ def _validate_pomdesc(fd):
     return not VALIDATION_DETAILS
 
 
-@message('doesn\'t end with a blank line')
-def _validate_sql_last_line(fd, options={}):
-    sql_lines = fd.readlines()
-    last_line = (sql_lines[-1].strip() if sql_lines else '')
-    return not last_line
-
-
-def _fix_sql_last_line(src, dst, options={}):
-    original = src.read()
-    dst.write(original)
-    dst.write('\n')
-
-
 @message('SQL file ends without a semicolon')
 def _validate_sql_semi_colon(fd, options={}):
     import sqlparse
@@ -550,6 +537,8 @@ def _validate_database_dir(fname, options={}):
     if 'database/lounge' in fname or not fnmatch.fnmatch(fname, '*.sql'):
         return True
     pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParser')
+    if not os.path.isfile(pgsqlparser_bin):
+        raise ExecutionError('PostgreSQL parser binary not found, please set "pgsql-parser-bin" option')
 
     try:
         return_code = subprocess.call([
