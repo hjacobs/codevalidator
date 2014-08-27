@@ -9,7 +9,11 @@ written by Henning Jacobs <henning@jacobs1.de>
 
 from __future__ import print_function
 
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except:
+    # Python 3
+    from io import StringIO
 from collections import defaultdict
 
 from pythontidy import PythonTidy
@@ -240,7 +244,7 @@ def _validate_xml(fd):
     tree = ElementTree()
     try:
         tree.parse(fd)
-    except Exception, e:
+    except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
     return True
@@ -259,7 +263,7 @@ def _fix_xmlfmt(src, dst):
 def _validate_json(fd):
     try:
         json.load(fd)
-    except Exception, e:
+    except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
     return True
@@ -270,7 +274,7 @@ def _validate_yaml(fd):
     import yaml
     try:
         list(yaml.safe_load_all(fd))
-    except Exception, e:
+    except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
     return True
@@ -477,7 +481,7 @@ def _validate_pomdesc(fd):
     tree = ElementTree()
     try:
         elem = tree.parse(fd)
-    except Exception, e:
+    except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
     # group = elem.findtext(NS + 'groupId')
@@ -660,7 +664,7 @@ def validate_file_dir_rules(fname):
                 res = func(fname, options)
             else:
                 res = func(fname)
-        except Exception, e:
+        except Exception as e:
             _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
         else:
             if not res:
@@ -712,7 +716,7 @@ def validate_file_with_rules(fname, rules):
                     res = func(fd, options)
                 else:
                     res = func(fd)
-            except Exception, e:
+            except Exception as e:
                 _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
             else:
                 if not res:
@@ -765,7 +769,7 @@ def fix_file(fname, rules):
                     else:
                         func(src, dst)
                     was_fixed &= True
-                except Exception, e:
+                except Exception as e:
                     was_fixed = False
                     notify('{0}: ERROR fixing {1}: {2}'.format(fname, rule, e))
 
