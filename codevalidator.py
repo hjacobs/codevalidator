@@ -158,6 +158,14 @@ def message(msg):
     return wrap
 
 
+def is_python3(fd):
+    '''check first line of file object whether it contains "python3" (shebang)'''
+
+    line = fd.readline()
+    fd.seek(0)
+    return 'python3' in line
+
+
 @message('has invalid file path (file name or extension is not allowed)')
 def _validate_invalidpath(fd):
     return False
@@ -282,6 +290,9 @@ def _validate_yaml(fd):
 
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
+    if is_python3(fd):
+        # PythonTidy supports Python 2 only
+        return True
     source = StringIO(fd.read())
     if len(source.getvalue()) < 4:
         # small or empty files are ignored
@@ -526,6 +537,9 @@ def _fix_sql_semi_colon(src, dst, options={}):
 
 @message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
+    if is_python3(fd):
+        # TODO: Pyflakes supports Python 3, but we would need to run it in Python3
+        return True
     from pyflakes import checker
     tree = ast.parse(fd.read(), fd.name)
     w = checker.Checker(tree, fd.name)
