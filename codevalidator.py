@@ -559,13 +559,14 @@ def _validate_database_dir(fname, options={}):
         raise ExecutionError('PostgreSQL parser binary not found, please set "pgsql-parser-bin" option')
 
     try:
-        return_code = subprocess.call([
-            pgsqlparser_bin,
-            '-q',
-            '-c',
-            '-i',
-            fname,
-        ])
+        with open(os.devnull, 'w') as devnull:
+            return_code = subprocess.call([
+                pgsqlparser_bin,
+                '-q',
+                '-c',
+                '-i',
+                fname,
+            ], stderr=devnull)
         return return_code == 0
     except:
         return False
