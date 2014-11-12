@@ -11,12 +11,11 @@ from __future__ import print_function
 
 try:
     from StringIO import StringIO
-except:
+except ImportError:
     # Python 3
     from io import StringIO
 from collections import defaultdict
 
-from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import fromstring as xmlfromstring
@@ -32,6 +31,11 @@ import subprocess
 import sys
 import tempfile
 import shutil
+
+if sys.version_info.major == 2:
+    # Pythontidy is only supported on Python2
+    from pythontidy import PythonTidy
+
 
 NOT_SPACE = re.compile('[^ ]')
 
@@ -292,7 +296,7 @@ def _validate_yaml(fd):
 
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
-    if is_python3(fd):
+    if is_python3(fd) or sys.version_info.major == 3:
         # PythonTidy supports Python 2 only
         return True
     source = StringIO(fd.read())
