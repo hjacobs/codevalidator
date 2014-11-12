@@ -36,6 +36,8 @@ if sys.version_info.major == 2:
     # Pythontidy is only supported on Python2
     from pythontidy import PythonTidy
 
+is_py3 = sys.version_info.major == 3
+
 
 NOT_SPACE = re.compile('[^ ]')
 
@@ -180,8 +182,9 @@ def _validate_notabs(fd):
 
 
 def _fix_notabs(src, dst):
-    # TODO test this
-    dst.write(src.read().replace('\t', ' ' * 4))
+    original = src.read()
+    fixed = original.replace(b'\t', b' ' * 4)
+    dst.write(fixed.decode())
 
 
 @message('contains carriage return (CR)')
@@ -190,8 +193,9 @@ def _validate_nocr(fd):
 
 
 def _fix_nocr(src, dst):
-    # TODO test this
-    dst.write(src.read().replace('\r', ''))
+    original = src.read()
+    fixed = original.replace(b'\r', b'')
+    dst.write(fixed.decode())
 
 
 @message('is not UTF-8 encoded')
@@ -233,14 +237,15 @@ def _validate_indent4(fd):
 @message('contains lines with trailing whitespace')
 def _validate_notrailingws(fd):
     for line in fd:
-        if line.rstrip(b'\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
+        line = line.decode() if is_py3 else line
+        if line.rstrip('\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
             return False
     return True
 
 
 def _fix_notrailingws(src, dst):
-    # TODO test this
     for line in src:
+        line = line.decode() if is_py3 else line
         dst.write(line.rstrip())
         dst.write('\n')
 
@@ -735,8 +740,6 @@ def validate_file_with_rules(fname, rules):
                 else:
                     res = func(fd)
             except Exception as e:
-                raise
-                # TODO remove raise
                 _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
             else:
                 if not res:
@@ -799,7 +802,7 @@ def fix_file(fname, rules):
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
         with open_file_for_write(fname) as fd:
-            fd.write(fixed)
+            fd.write(fixed.encode())
         return True
     else:
         notify('{0}: ERROR fixing file. File remained unchanged'.format(fname))
