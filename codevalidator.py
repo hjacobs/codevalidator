@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -554,7 +554,7 @@ def _validate_pyflakes(fd, options={}):
 def _validate_database_dir(fname, options={}):
     if 'database/lounge' in fname or not fnmatch.fnmatch(fname, '*.sql'):
         return True
-    pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParser')
+    pgsqlparser_bin = options.get('pgsql-parser-bin', '/opt/codevalidator/PgSqlParserm')
     if not os.path.isfile(pgsqlparser_bin):
         raise ExecutionError('PostgreSQL parser binary not found, please set "pgsql-parser-bin" option')
 
@@ -837,7 +837,8 @@ def main():
         if os.path.isfile(config_file) and not args.config:
             args.config = config_file
     if args.config:
-        CONFIG.update(json.load(open(args.config, 'rb')))
+        config = open(args.config, 'rb').read().decode()
+        CONFIG.update(json.loads(config))
     if args.verbose:
         CONFIG['verbose'] = args.verbose
         if args.verbose > 1:
