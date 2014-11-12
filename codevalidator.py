@@ -21,7 +21,6 @@ from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import fromstring as xmlfromstring
 import argparse
-import ast
 import contextlib
 import csv
 import fnmatch
@@ -163,7 +162,7 @@ def is_python3(fd):
 
     line = fd.readline()
     fd.seek(0)
-    return 'python3' in line
+    return b'python3' in line
 
 
 @message('has invalid file path (file name or extension is not allowed)')
@@ -540,17 +539,13 @@ def _fix_sql_semi_colon(src, dst, options={}):
 
 @message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
-    if is_python3(fd):
-        # TODO: Pyflakes supports Python 3, but we would need to run it in Python3
-        return True
-    from pyflakes import checker
-    tree = ast.parse(fd.read(), fd.name)
-    w = checker.Checker(tree, fd.name)
-    w.messages.sort(key=lambda x: x.lineno)
-    for message in w.messages:
+    proc = subprocess.Popen(['pyflakes', fd.name], stderr=subprocess.PIPE)
+    proc.wait()
+    errors = proc.stderr.read().decode().splitlines()
+    for message in errors:
         error = message.message % message.message_args
         _detail(error, line=message.lineno)
-    return len(w.messages) == 0
+    return proc.returncode == 0
 
 
 @message('contains syntax errors')
@@ -683,6 +678,7 @@ def validate_file_dir_rules(fname):
             else:
                 res = func(fname)
         except Exception as e:
+
             _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
         else:
             if not res:
@@ -735,6 +731,8 @@ def validate_file_with_rules(fname, rules):
                 else:
                     res = func(fd)
             except Exception as e:
+                raise
+                # TODO remove raise
                 _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
             else:
                 if not res:
