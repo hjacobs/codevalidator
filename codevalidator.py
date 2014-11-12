@@ -350,10 +350,10 @@ def __jalopy(original, options, use_nailgun=True):
             j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
             stdout, stderr = j.communicate()
             if stderr or '[ERROR]' in stdout:
-                if stderr.strip() == 'connect: Connection refused':
+                if stderr.strip().decode() == 'connect: Connection refused':
                     # Fallback
                     return __jalopy(original, options, use_nailgun=False)
-                raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
+                raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr.decode(), stdout.decode()))
             if '[WARN]' in stdout:
                 logging.info('Jalopy reports warnings: %s', stdout)
             name = os.path.basename(f.name)
