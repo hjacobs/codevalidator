@@ -245,7 +245,6 @@ def _validate_notrailingws(fd):
 
 def _fix_notrailingws(src, dst):
     for line in src:
-        line = line.decode() if is_py3 else line
         dst.write(line.rstrip())
         dst.write('\n')
 
