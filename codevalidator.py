@@ -209,7 +209,7 @@ def _validate_ascii(fd):
 
 @message('has UTF-8 byte order mark (BOM)')
 def _validate_nobom(fd):
-    return not fd.read(3).startswith('\xef\xbb\xbf')
+    return not fd.read(3).startswith(b'\xef\xbb\xbf')
 
 
 @message('contains invalid indentation (not 4 spaces)')
