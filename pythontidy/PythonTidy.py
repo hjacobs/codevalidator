@@ -297,13 +297,7 @@ if DEBUG:
     import token
     import doctest
 import tokenize
-
-is_py3 = sys.version_info.major == 3
-
-if is_py3:
-    import ast
-else:
-    import compiler
+import compiler
 
 ZERO = 0
 SPACE = ' '
@@ -4565,7 +4559,7 @@ def tidy_up(file_in=sys.stdin, file_out=sys.stdout):  # 2007 Jan 22
     OUTPUT = OutputUnit(file_out)
     COMMENTS = Comments()
     NAME_SPACE = NameSpace()
-    module = ast.parse(str(INPUT)) if is_py3 else compiler.parse(str(INPUT))
+    module = compiler.parse(str(INPUT))
     module = transform(indent=ZERO, lineno=ZERO, node=module)
     INPUT_CODING = INPUT.coding  # 2007 May 23
     del INPUT
