@@ -11,9 +11,9 @@ from __future__ import print_function
 
 try:
     from StringIO import StringIO
-except:
+except ImportError:
     # Python 3
-    from io import StringIO
+    from io import StringIO, BytesIO
 from collections import defaultdict
 
 from pythontidy import PythonTidy
@@ -292,10 +292,8 @@ def _validate_yaml(fd):
 
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
-    if is_python3(fd):
-        # PythonTidy supports Python 2 only
-        return True
-    source = StringIO(fd.read())
+    # TODO test with python3
+    source = StringIO(fd.read().decode())
     if len(source.getvalue()) < 4:
         # small or empty files are ignored
         return True
