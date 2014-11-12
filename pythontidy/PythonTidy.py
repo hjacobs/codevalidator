@@ -637,10 +637,7 @@ class InputUnit(object):
         self.end = len(self.lines) - 1
         return self
 
-    def next(self):
-        return self.__next__()
-
-    def __next__(self):  # 2006 Dec 05
+    def next(self):  # 2006 Dec 05
         if self.ndx > self.end:
             raise StopIteration
         elif self.ndx == self.end:
@@ -655,7 +652,7 @@ class InputUnit(object):
 
     def readline(self):  # 2006 Dec 05
         try:
-            result = next(self)
+            result = self.next()
         except StopIteration:
             result = NULL
         return result
@@ -944,7 +941,7 @@ class Comments(dict):
 
             try:
                 while True:
-                    prev_item = next(lines)
+                    prev_item = lines.next()
                     yield prev_item
 
                     (
@@ -957,7 +954,7 @@ class Comments(dict):
                     if prev_token_type in [tokenize.STRING]:
                         on1 = True
                         while True:
-                            next_item = next(lines)
+                            next_item = lines.next()
                             yield next_item
 
                             (
@@ -1004,8 +1001,7 @@ class Comments(dict):
             erow, ecol = end
             if token_type in [tokenize.COMMENT, tokenize.NL]:
                 original = token_string
-                if not is_py3:
-                    original = original.decode(INPUT.coding)
+                original = original.decode(INPUT.coding)
                 original = original.replace('\t', DOC_TAB_REPLACEMENT)  # 2007 May 24
                 original = original.strip()
                 if SHEBANG_PATTERN.match(original) is not None:
@@ -4235,8 +4231,7 @@ class NodeTryExcept(Node):
                 if target is None:
                     pass
                 else:
-                    separator = 'as ' if is_py3 else LIST_SEP
-                    self.line_more(separator, can_break_after=True)
+                    self.line_more(LIST_SEP, can_break_after=True)
                     target.put()
             self.line_more(':')
             self.line_term(suite.get_lineno() - 1)
@@ -4570,12 +4565,6 @@ def tidy_up(file_in=sys.stdin, file_out=sys.stdout):  # 2007 Jan 22
     OUTPUT = OutputUnit(file_out)
     COMMENTS = Comments()
     NAME_SPACE = NameSpace()
-    input_is_python3 = str(INPUT).startswith('#!/usr/bin/env python3')
-    if input_is_python3 != is_py3:
-        file_in.seek(0)
-        file_out.write(file_in.read())
-        return
-        # we can't validate different python versions
     module = ast.parse(str(INPUT)) if is_py3 else compiler.parse(str(INPUT))
     module = transform(indent=ZERO, lineno=ZERO, node=module)
     INPUT_CODING = INPUT.coding  # 2007 May 23
