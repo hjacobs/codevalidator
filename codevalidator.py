@@ -173,19 +173,21 @@ def _validate_invalidpath(fd):
 
 @message('contains tabs')
 def _validate_notabs(fd):
-    return '\t' not in fd.read()
+    return b'\t' not in fd.read()
 
 
 def _fix_notabs(src, dst):
+    # TODO test this
     dst.write(src.read().replace('\t', ' ' * 4))
 
 
 @message('contains carriage return (CR)')
 def _validate_nocr(fd):
-    return '\r' not in fd.read()
+    return b'\r' not in fd.read()
 
 
 def _fix_nocr(src, dst):
+    # TODO test this
     dst.write(src.read().replace('\r', ''))
 
 
@@ -228,12 +230,13 @@ def _validate_indent4(fd):
 @message('contains lines with trailing whitespace')
 def _validate_notrailingws(fd):
     for line in fd:
-        if line.rstrip('\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
+        if line.rstrip(b'\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
             return False
     return True
 
 
 def _fix_notrailingws(src, dst):
+    # TODO test this
     for line in src:
         dst.write(line.rstrip())
         dst.write('\n')
