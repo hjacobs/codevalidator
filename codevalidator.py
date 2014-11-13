@@ -36,7 +36,7 @@ if sys.version_info.major == 2:
     # Pythontidy is only supported on Python2
     from pythontidy import PythonTidy
 
-is_py3 = sys.version_info.major == 3
+running_on_py3 = sys.version_info.major == 3
 
 
 NOT_SPACE = re.compile('[^ ]')
@@ -237,7 +237,7 @@ def _validate_indent4(fd):
 @message('contains lines with trailing whitespace')
 def _validate_notrailingws(fd):
     for line in fd:
-        line = line.decode() if is_py3 else line
+        line = line.decode() if running_on_py3 else line
         if line.rstrip('\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
             return False
     return True
@@ -300,7 +300,7 @@ def _validate_yaml(fd):
 
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
-    if is_python3(fd) or is_py3:
+    if is_python3(fd) or running_on_py3:
         # PythonTidy supports Python 2 only
         return True
     source = StringIO(fd.read())
