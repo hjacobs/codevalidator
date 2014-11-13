@@ -300,7 +300,7 @@ def _validate_yaml(fd):
 
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
-    if is_python3(fd) or sys.version_info.major == 3:
+    if is_python3(fd) or is_py3:
         # PythonTidy supports Python 2 only
         return True
     source = StringIO(fd.read())
