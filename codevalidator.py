@@ -58,6 +58,7 @@ DEFAULT_CONFIG = {
         '*.conf': DEFAULT_RULES,
         '*.cpp': DEFAULT_RULES,
         '*.css': DEFAULT_RULES,
+        '*.erb': DEFAULT_RULES + ['erb'],
         '*.groovy': DEFAULT_RULES,
         '*.h': DEFAULT_RULES,
         '*.htm': DEFAULT_RULES,
@@ -501,6 +502,24 @@ def _validate_rubocop(fd):
     retcode = p0.poll()
     if retcode != 0:
         _detail("rubocop exited with %d: \n%s" % (retcode, output))
+        return False
+    return True
+
+
+@message('is not valid ERB template')
+def _validate_erb(fd):
+    p1 = subprocess.Popen([
+        'erb',
+        '-P',
+        '-x',
+        '-T',
+        '-',
+    ], stdin=fd, stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(['ruby', '-c'], stdin=p1.stdout, stdout=subprocess.PIPE)
+    p1.stdout.close()
+    output, stderr = p2.communicate()
+    retcode = p2.poll()
+    if output.strip() != 'Syntax OK' or retcode != 0:
         return False
     return True
 
