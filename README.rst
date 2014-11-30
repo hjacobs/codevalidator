@@ -21,11 +21,14 @@ Requirements
 * sqlparse
 * jshint (for JavaScript checking)
 * PyYAML (for YAML checking)
+* Ruby (for Ruby code checking)
+* Rubygems (for Ruby code checking with rubocop)
 
 On Ubuntu you can install most packages easily::
 
-    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml
+    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml rubygems
     sudo npm install -g jshint
+    sudo gem i rubocop
 
 If you are using Jalopy, for better performance also install Nailgun::
 
