@@ -776,13 +776,25 @@ def validate_file(fname):
             validate_file_with_rules(fname, rules)
 
 
-def validate_directory(path):
+def validate_directory(path, exclude_patterns, include_patterns):
+    exclude_patterns = [os.path.join(path, pattern) for pattern in exclude_patterns or []]
+    include_patterns = [os.path.join(path, pattern) for pattern in include_patterns or []]
     for root, dirnames, filenames in os.walk(path):
         for exclude in CONFIG['exclude_dirs']:
             if exclude in dirnames:
                 dirnames.remove(exclude)
         for fname in filenames:
-            validate_file(os.path.join(root, fname))
+            fname = os.path.join(root, fname)
+            match_excluded = any(fnmatch.fnmatch(fname, pattern) for pattern in exclude_patterns)
+            match_included = any(fnmatch.fnmatch(fname, pattern) for pattern in include_patterns)
+
+            if exclude_patterns:
+                validate = not match_excluded or match_included
+            else:
+                validate = match_included or not include_patterns
+
+            if validate:
+                validate_file(fname)
 
 
 def fix_file(fname, rules):
@@ -851,6 +863,8 @@ def main():
     parser.add_argument('--filter', action='store_true',
                         help='special mode to read from STDIN and write to STDOUT, uses provided file name to find matching rules'
                         )
+    parser.add_argument('-e', '--exclude',  nargs='+', help='file patterns to exclude (only works with -r)')
+    parser.add_argument('-i', '--include',  nargs='+', help='file patterns to include (only works with -r)')
     parser.add_argument('files', metavar='FILES', nargs='+', help='list of source files to validate')
     args = parser.parse_args()
 
@@ -893,7 +907,7 @@ def main():
 
         for f in args.files:
             if args.recursive and os.path.isdir(f):
-                validate_directory(f)
+                validate_directory(f, args.exclude, args.include)
             elif args.apply:
                 fix_file(f, args.apply)
             else:
