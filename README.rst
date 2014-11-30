@@ -21,10 +21,11 @@ Requirements
 * sqlparse
 * jshint (for JavaScript checking)
 * PyYAML (for YAML checking)
+* erb and ruby (for ERB template checking)
 
 On Ubuntu you can install most packages easily::
 
-    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml
+    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml ruby
     sudo npm install -g jshint
 
 If you are using Jalopy, for better performance also install Nailgun::
