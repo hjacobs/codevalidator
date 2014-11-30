@@ -74,6 +74,7 @@ DEFAULT_CONFIG = {
         '*.properties': DEFAULT_RULES + ['ascii'],
         '*.py': DEFAULT_RULES + ['pyflakes', 'pythontidy'],
         '*.rst': DEFAULT_RULES,
+        '*.rb': DEFAULT_RULES + ['ruby', 'rubocop'],
         '* *': ['invalidpath'],
         '*.sh': DEFAULT_RULES,
         '*.sql': DEFAULT_RULES + ['sql_semi_colon'],
@@ -481,6 +482,27 @@ def _validate_puppet(fd):
             valid = False
             _detail('puppet parser exited with %d: %s' % (retcode, re.sub('[^A-Za-z0-9 .:-]', '', output)))
         return valid
+
+
+@message('is not valid ruby')
+def _validate_ruby(fd):
+    p0 = subprocess.Popen(["ruby", "-c"], stdin=fd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = p0.communicate()
+    retcode = p0.poll()
+    if output.strip() != 'Syntax OK' or retcode != 0:
+        _detail("ruby parser exited with %d: %s" % (retcode, stderr))
+        return False
+    return True
+
+@message('is not rubocop formatted ruby code')
+def _validate_rubocop(fd):
+    p0 = subprocess.Popen(["rubocop", "--format", "emacs", fd.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = p0.communicate()
+    retcode = p0.poll()
+    if retcode != 0:
+        _detail("rubocop exited with %d: \n%s" % (retcode, output))
+        return False
+    return True
 
 
 @message('has incomplete Maven POM description')
