@@ -23,10 +23,11 @@ Requirements
 * PyYAML (for YAML checking)
 * Ruby (for Ruby code checking)
 * Rubygems (for Ruby code checking with rubocop)
+* erb and ruby (for ERB template checking)
 
 On Ubuntu you can install most packages easily::
 
-    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml rubygems
+    sudo apt-get install python-lxml pep8 pyflakes nodejs npm python-sqlparse python-yaml ruby rubygems
     sudo npm install -g jshint
     sudo gem i rubocop
 
