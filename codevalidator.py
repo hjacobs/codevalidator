@@ -283,7 +283,10 @@ def _validate_json(fd):
 def _validate_yaml(fd):
     import yaml
     try:
-        list(yaml.safe_load_all(fd))
+        # Using BaseLoader because it doesn't parse tags
+        loader = yaml.BaseLoader(fd)
+        while loader.check_data():
+            print(loader.get_data())
     except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
