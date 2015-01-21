@@ -286,7 +286,7 @@ def _validate_yaml(fd):
         # Using BaseLoader because it doesn't parse tags
         loader = yaml.BaseLoader(fd)
         while loader.check_data():
-            print(loader.get_data())
+            loader.get_data()
     except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
