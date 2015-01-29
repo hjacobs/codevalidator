@@ -283,8 +283,10 @@ def _validate_json(fd):
 def _validate_yaml(fd):
     import yaml
     try:
-        # Using BaseLoader because it doesn't parse tags
-        loader = yaml.BaseLoader(fd)
+        # Using safeloader because it supports recursive nodes
+        loader = yaml.SafeLoader(fd)
+        # Support random tags
+        loader.add_multi_constructor('!', (lambda _, tag, _2: tag)) 
         while loader.check_data():
             loader.get_data()
     except Exception as e:
