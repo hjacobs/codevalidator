@@ -1382,7 +1382,7 @@ def transform(indent, lineno, node):
     elif isinstance_(node, 'For'):
         result = NodeFor(indent, lineno, node.assign, node.list, node.body, node.else_)
     elif isinstance_(node, 'From'):
-        result = NodeFrom(indent, lineno, node.modname, node.names)
+        result = NodeFrom(indent, lineno, node.modname, node.names, node.level)
     elif isinstance_(node, 'Function'):
         result = NodeFunction(
             indent,
@@ -2793,11 +2793,12 @@ class NodeFrom(Node):
 
     tag = 'From'
 
-    def __init__(self, indent, lineno, modname, names):
+    def __init__(self, indent, lineno, modname, names, level):
         Node.__init__(self, indent, lineno)
         self.modname = transform(indent, lineno, modname)
         self.names = [(transform(indent, lineno, identifier), transform(indent, lineno, name)) for (identifier,
                       name) in names]
+        self.level = level
         return
 
     def put(self, can_split=False):
@@ -2813,6 +2814,7 @@ class NodeFrom(Node):
 
         self.line_init()
         self.line_more('from ')
+        self.line_more('.' * self.level)
         self.modname.put(can_split=can_split)
         self.line_more(' import ')
         for identifier, name in self.names[:-1]:
