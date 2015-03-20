@@ -310,9 +310,13 @@ def _validate_pythontidy(fd):
 
 
 @message('is not pep8 formatted')
-def _validate_pep8(fd, options):
+def _validate_pep8(fd, options={}):
     import pep8
-    pep8style = pep8.StyleGuide(max_line_length=options['max_line_length'])
+
+    # if user doesn't define a new value use the pep8 default
+    max_line_length = options.get('max_line_length', pep8.MAX_LINE_LENGTH)
+
+    pep8style = pep8.StyleGuide(max_line_length=max_line_length)
     check = pep8style.input_file(fd.name)
     return check == 0
 
@@ -383,7 +387,7 @@ def _fix_pythontidy(src, dst):
     PythonTidy.tidy_up(src, dst)
 
 
-def _fix_pep8(src, dst, options):
+def _fix_pep8(src, dst, options={}):
     import autopep8
     if type(src) is file:
         source = src.read()
