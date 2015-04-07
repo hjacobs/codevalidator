@@ -11,17 +11,15 @@ from __future__ import print_function
 
 try:
     from StringIO import StringIO
-except:
+except ImportError:
     # Python 3
     from io import StringIO
 from collections import defaultdict
 
-from pythontidy import PythonTidy
 from tempfile import NamedTemporaryFile
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import fromstring as xmlfromstring
 import argparse
-import ast
 import contextlib
 import csv
 import fnmatch
@@ -33,6 +31,13 @@ import subprocess
 import sys
 import tempfile
 import shutil
+
+if sys.version_info.major == 2:
+    # Pythontidy is only supported on Python2
+    from pythontidy import PythonTidy
+
+running_on_py3 = sys.version_info.major == 3
+
 
 NOT_SPACE = re.compile('[^ ]')
 
@@ -165,7 +170,7 @@ def is_python3(fd):
 
     line = fd.readline()
     fd.seek(0)
-    return 'python3' in line
+    return b'python3' in line
 
 
 @message('has invalid file path (file name or extension is not allowed)')
@@ -175,20 +180,24 @@ def _validate_invalidpath(fd):
 
 @message('contains tabs')
 def _validate_notabs(fd):
-    return '\t' not in fd.read()
+    return b'\t' not in fd.read()
 
 
 def _fix_notabs(src, dst):
-    dst.write(src.read().replace('\t', ' ' * 4))
+    original = src.read()
+    fixed = original.replace(b'\t', b' ' * 4)
+    dst.write(fixed.decode())
 
 
 @message('contains carriage return (CR)')
 def _validate_nocr(fd):
-    return '\r' not in fd.read()
+    return b'\r' not in fd.read()
 
 
 def _fix_nocr(src, dst):
-    dst.write(src.read().replace('\r', ''))
+    original = src.read()
+    fixed = original.replace(b'\r', b'')
+    dst.write(fixed.decode())
 
 
 @message('is not UTF-8 encoded')
@@ -211,7 +220,7 @@ def _validate_ascii(fd):
 
 @message('has UTF-8 byte order mark (BOM)')
 def _validate_nobom(fd):
-    return not fd.read(3).startswith('\xef\xbb\xbf')
+    return not fd.read(3).startswith(b'\xef\xbb\xbf')
 
 
 @message('contains invalid indentation (not 4 spaces)')
@@ -230,6 +239,7 @@ def _validate_indent4(fd):
 @message('contains lines with trailing whitespace')
 def _validate_notrailingws(fd):
     for line in fd:
+        line = line.decode() if running_on_py3 else line
         if line.rstrip('\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
             return False
     return True
@@ -297,7 +307,7 @@ def _validate_yaml(fd):
 
 @message('is not PythonTidy formatted')
 def _validate_pythontidy(fd):
-    if is_python3(fd):
+    if is_python3(fd) or running_on_py3:
         # PythonTidy supports Python 2 only
         return True
     source = StringIO(fd.read())
@@ -355,10 +365,10 @@ def __jalopy(original, options, use_nailgun=True):
             j = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_env)
             stdout, stderr = j.communicate()
             if stderr or '[ERROR]' in stdout:
-                if stderr.strip() == 'connect: Connection refused':
+                if stderr.strip().decode() == 'connect: Connection refused':
                     # Fallback
                     return __jalopy(original, options, use_nailgun=False)
-                raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr, stdout))
+                raise ExecutionError('Failed to execute Jalopy: %s%s' % (stderr.decode(), stdout.decode()))
             if '[WARN]' in stdout:
                 logging.info('Jalopy reports warnings: %s', stdout)
             name = os.path.basename(f.name)
@@ -587,17 +597,13 @@ def _fix_sql_semi_colon(src, dst, options={}):
 
 @message('doesn\'t pass Pyflakes validation')
 def _validate_pyflakes(fd, options={}):
-    if is_python3(fd):
-        # TODO: Pyflakes supports Python 3, but we would need to run it in Python3
-        return True
-    from pyflakes import checker
-    tree = ast.parse(fd.read(), fd.name)
-    w = checker.Checker(tree, fd.name)
-    w.messages.sort(key=lambda x: x.lineno)
-    for message in w.messages:
+    proc = subprocess.Popen(['pyflakes', fd.name], stderr=subprocess.PIPE)
+    proc.wait()
+    errors = proc.stderr.read().decode().splitlines()
+    for message in errors:
         error = message.message % message.message_args
         _detail(error, line=message.lineno)
-    return len(w.messages) == 0
+    return proc.returncode == 0
 
 
 @message('contains syntax errors')
@@ -730,6 +736,7 @@ def validate_file_dir_rules(fname):
             else:
                 res = func(fname)
         except Exception as e:
+
             _error(fname, rule, func, 'ERROR validating {0}: {1}'.format(rule, e))
         else:
             if not res:
@@ -856,7 +863,7 @@ def fix_file(fname, rules):
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
         with open_file_for_write(fname) as fd:
-            fd.write(fixed)
+            fd.write(fixed.encode())
         return True
     else:
         notify('{0}: ERROR fixing file. File remained unchanged'.format(fname))
@@ -901,7 +908,8 @@ def main():
         if os.path.isfile(config_file) and not args.config:
             args.config = config_file
     if args.config:
-        CONFIG.update(json.load(open(args.config, 'rb')))
+        config = open(args.config, 'rb').read().decode()
+        CONFIG.update(json.loads(config))
     if args.verbose:
         CONFIG['verbose'] = args.verbose
         if args.verbose > 1:
