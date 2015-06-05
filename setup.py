@@ -6,7 +6,7 @@ from setuptools import setup
 with open('README.rst') as readme:
     setup(
         name='codevalidator',
-        version='0.8.1',
+        version='0.8.2',
         description='Simple source code validator with file reformatting option (remove trailing WS, pretty print XML, ..)'
             ,
         long_description=readme.read(),
