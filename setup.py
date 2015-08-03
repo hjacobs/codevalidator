@@ -14,10 +14,10 @@ class PyTest(TestCommand):
 
     def initialize_options(self):
         TestCommand.initialize_options(self)
-        self.cov = True
-        self.cov_xml = True
+        self.cov = None
+        self.cov_xml = False
         self.cov_html = True
-        self.junitxml = True
+        self.junitxml = False
 
     def finalize_options(self):
         TestCommand.finalize_options(self)
