@@ -65,7 +65,7 @@ if __name__ == '__main__':
             packages=['pythontidy'],
             entry_points={'console_scripts': ['codevalidator = codevalidator:main']},
             extras_require={'YAML': ['PyYAML'], 'XML': ['lxml'], 'Python': ['pep8', 'autopep8', 'pyflakes']},
-            tests_require=['pytest-cov', 'pytest'],
+            tests_require=['pytest-cov', 'pytest>=2.7.2'],
             cmdclass=cmdclass,
             command_options=command_options,
             keywords='formatter, beautify, indentation',
