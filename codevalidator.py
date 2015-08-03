@@ -42,7 +42,7 @@ running_on_py3 = sys.version_info.major == 3
 
 NOT_SPACE = re.compile('[^ ]')
 
-TRAILING_WHITESPACE_CHARS = set(' \t')
+TRAILING_WHITESPACE_CHARS = set([b' ', b'\t'])
 INDENTATION = '    '
 
 DEFAULT_CONFIG_PATHS = ['~/.codevalidatorrc', '/etc/codevalidatorrc']
@@ -181,6 +181,13 @@ def _validate_invalidpath(fd):
 
 @message('contains tabs')
 def _validate_notabs(fd):
+    '''
+    >>> _validate_notabs(BytesIO(b'foo'))
+    True
+
+    >>> _validate_notabs(BytesIO(b'a\\tb'))
+    False
+    '''
     return b'\t' not in fd.read()
 
 
@@ -243,9 +250,15 @@ def _validate_indent4(fd):
 
 @message('contains lines with trailing whitespace')
 def _validate_notrailingws(fd):
+    '''
+    >>> _validate_notrailingws(BytesIO(b''))
+    True
+
+    >>> _validate_notrailingws(BytesIO(b'a '))
+    False
+    '''
     for line in fd:
-        line = line.decode() if running_on_py3 else line
-        if line.rstrip('\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
+        if line.rstrip(b'\n\r')[-1:] in TRAILING_WHITESPACE_CHARS:
             return False
     return True
 
@@ -286,8 +299,15 @@ def _fix_xmlfmt(src, dst):
 
 @message('is not valid JSON')
 def _validate_json(fd):
+    '''
+    >>> _validate_json(BytesIO(b''))
+    False
+
+    >>> _validate_json(BytesIO(b'""'))
+    True
+    '''
     try:
-        json.load(fd)
+        json.loads(fd.read().decode('utf-8'))
     except Exception as e:
         _detail('%s: %s' % (e.__class__.__name__, e))
         return False
@@ -296,6 +316,13 @@ def _validate_json(fd):
 
 @message('is not valid YAML')
 def _validate_yaml(fd):
+    '''
+    >>> _validate_yaml(BytesIO(b'a: b'))
+    True
+
+    >>> _validate_yaml(BytesIO(b'a: [b'))
+    False
+    '''
     import yaml
     try:
         # Using safeloader because it supports recursive nodes
