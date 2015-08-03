@@ -11,9 +11,10 @@ from __future__ import print_function
 
 try:
     from StringIO import StringIO
+    BytesIO = StringIO
 except ImportError:
     # Python 3
-    from io import StringIO
+    from io import StringIO, BytesIO
 from collections import defaultdict
 
 from tempfile import NamedTemporaryFile
@@ -202,6 +203,10 @@ def _fix_nocr(src, dst):
 
 @message('is not UTF-8 encoded')
 def _validate_utf8(fd):
+    '''
+    >>> _validate_utf8(BytesIO(b'foo'))
+    True
+    '''
     try:
         fd.read().decode('utf-8')
     except UnicodeDecodeError:
@@ -296,7 +301,7 @@ def _validate_yaml(fd):
         # Using safeloader because it supports recursive nodes
         loader = yaml.SafeLoader(fd)
         # Support random tags
-        loader.add_multi_constructor('!', (lambda _, tag, _2: tag)) 
+        loader.add_multi_constructor('!', (lambda _, tag, _2: tag))
         while loader.check_data():
             loader.get_data()
     except Exception as e:
@@ -514,6 +519,7 @@ def _validate_ruby(fd):
         return False
     return True
 
+
 @message('is not rubocop formatted ruby code')
 def _validate_rubocop(fd):
     p0 = subprocess.Popen(["rubocop", "--format", "emacs", fd.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -661,8 +667,8 @@ def _validate_sql_diff_sql(fname, options=None):
     sql = open(fname).read()
     has_set_role = re.search('[Ss][Ee][Tt] +[Rr][Oo][Ll][Ee] +[Tt][Oo] +zalando(_admin)?\s*', sql)
     has_set_project_schema_owner_role = \
-        re.search('''^ *select zz_utils\.set_project_schema_owner_role\('\w+'\);'''
-                  , sql, re.MULTILINE + re.IGNORECASE)
+        re.search('''^ *select zz_utils\.set_project_schema_owner_role\('\w+'\);''',
+                  sql, re.MULTILINE + re.IGNORECASE)
     if not (has_set_role or has_set_project_schema_owner_role):
         return 'set role to zalando; or SELECT zz_utils.set_project_schema_owner_role(); must be present in db diff'
 

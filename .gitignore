@@ -1,4 +1,8 @@
 *.pyc
 dist
 build
-*.egg-info
+*.egg*
+*.swp
+.coverage
+coverage.xml
+htmlcov/
