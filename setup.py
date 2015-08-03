@@ -17,7 +17,7 @@ class PyTest(TestCommand):
         self.cov = None
         self.cov_xml = False
         self.cov_html = True
-        self.junitxml = False
+        self.junitxml = None
 
     def finalize_options(self):
         TestCommand.finalize_options(self)
@@ -76,5 +76,6 @@ if __name__ == '__main__':
                 'Topic :: Software Development :: Pre-processors',
                 'Topic :: Text Processing :: Markup :: XML',
                 'Programming Language :: Python :: 2.7',
+                'Programming Language :: Python :: 3.4',
             ],
         )
