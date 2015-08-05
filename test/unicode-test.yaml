@@ -1,0 +1,3 @@
+example: |
+      This line ends with a space. 
+      This line has non-ASCII signs in it – which breaks codevalidator 0.8.2.

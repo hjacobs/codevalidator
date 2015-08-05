@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import shutil
+import codecs
 
 if sys.version_info.major == 2:
     # Pythontidy is only supported on Python2
@@ -46,6 +47,10 @@ TRAILING_WHITESPACE_CHARS = set([b' ', b'\t'])
 INDENTATION = '    '
 
 DEFAULT_CONFIG_PATHS = ['~/.codevalidatorrc', '/etc/codevalidatorrc']
+
+# The first rule name which matches a registered encoding is used
+# both as a check that the file can be read with that encoding,
+# as well as a encoding filter for those rules which support fixing.
 
 DEFAULT_RULES = [
     'utf8',
@@ -78,7 +83,7 @@ DEFAULT_CONFIG = {
         '*.php': DEFAULT_RULES + ['phpcs'],
         '*.phtml': DEFAULT_RULES,
         '*.pp': DEFAULT_RULES + ['puppet'],
-        '*.properties': DEFAULT_RULES + ['ascii'],
+        '*.properties': ['ascii'] + DEFAULT_RULES,
         '*.py': DEFAULT_RULES + ['pyflakes', 'pythontidy'],
         '*.rst': DEFAULT_RULES,
         '*.rb': DEFAULT_RULES + ['ruby', 'rubocop'],
@@ -114,6 +119,7 @@ BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 STDIN_CONTENTS = None
 
+ENCODING_BY_FILE = dict()
 
 class BaseException(Exception):
 
@@ -165,6 +171,35 @@ def message(msg):
 
     return wrap
 
+def needs_unicode(fix_function):
+    """
+    decorator for a _fix_... function to make it work with a pair of
+    unicode files (or file-like objects) internally instead of a pair
+    of byte-files (which are still used externally).
+    
+    The returned function has an attribute `needs_encoding` which tells
+    the calling function that it needs an encoding argument (the name of
+    the encoding to use).
+    """
+
+    def wrapped_fix(src, dst, encoding_or_options):
+         if isinstance(encoding_or_options, basestring):
+            encoding = encoding_or_options
+            options = None
+         else:
+            encoding = encoding_or_options['encoding']
+            options = encoding_or_options
+         # decode + encode
+         src = codecs.EncodedFile(src, encoding)
+         dst = codecs.EncodedFile(dst, encoding)
+         if options:
+            return fix_function(src, dst, options)
+         else:
+            return fix_function(src, dst)
+
+    wrapped_fix.needs_encoding = True
+    return wrapped_fix
+
 
 def is_python3(fd):
     '''check first line of file object whether it contains "python3" (shebang)'''
@@ -191,10 +226,11 @@ def _validate_notabs(fd):
     return b'\t' not in fd.read()
 
 
+@needs_unicode
 def _fix_notabs(src, dst):
     original = src.read()
     fixed = original.replace(b'\t', b' ' * 4)
-    dst.write(fixed.decode())
+    dst.write(fixed)
 
 
 @message('contains carriage return (CR)')
@@ -202,32 +238,21 @@ def _validate_nocr(fd):
     return b'\r' not in fd.read()
 
 
+@needs_unicode
 def _fix_nocr(src, dst):
     original = src.read()
-    fixed = original.replace(b'\r', b'')
-    dst.write(fixed.decode())
+    fixed = original.replace('\r', '')
+    dst.write(fixed)
 
 
-@message('is not UTF-8 encoded')
-def _validate_utf8(fd):
-    '''
-    >>> _validate_utf8(BytesIO(b'foo'))
-    True
-    '''
-    try:
-        fd.read().decode('utf-8')
-    except UnicodeDecodeError:
-        return False
-    return True
-
-
-@message('is not ASCII encoded')
-def _validate_ascii(fd):
-    try:
-        fd.read().decode('ascii')
-    except UnicodeDecodeError:
-        return False
-    return True
+def encoding_validator(encoding):
+    def validate_encoding(fd):
+        try:
+            fd.read().decode(encoding)
+        except UnicodeDecodeError:
+            return "is not %s-encoded" % encoding.upper()
+        return True
+    return validate_encoding
 
 
 @message('has UTF-8 byte order mark (BOM)')
@@ -263,6 +288,7 @@ def _validate_notrailingws(fd):
     return True
 
 
+@needs_unicode
 def _fix_notrailingws(src, dst):
     for line in src:
         dst.write(line.rstrip())
@@ -806,15 +832,29 @@ def notify(*args):
         print(*args)
 
 
+def get_encoding_rule(rules):
+    for rule in rules:
+        try:
+            codecs.lookup(rule)
+            return rule
+        except LookupError:
+            continue
+
+
 def validate_file_with_rules(fname, rules):
+    encoding = get_encoding_rule(rules)
+    ENCODING_BY_FILE[fname] = encoding
     with open_file_for_read(fname) as fd:
         for rule in rules:
             logging.debug('Validating %s with %s..', fname, rule)
             fd.seek(0)
             func = globals().get('_validate_' + rule)
             if not func:
-                notify(rule, 'does not exist')
-                continue
+                if rule == encoding:
+                    func = encoding_validator(encoding)
+                else:
+                    notify(rule, 'does not exist')
+                    continue
             options = CONFIG.get('options', {}).get(rule)
             try:
                 if options:
@@ -870,6 +910,7 @@ def fix_file(fname, rules):
     if CONFIG.get('create_backup', True):
         dirname, basename = os.path.split(fname)
         shutil.copy2(fname, os.path.join(dirname, CONFIG['backup_filename'].format(original=basename)))  # creates a backup
+    encoding = ENCODING_BY_FILE[fname]
     with open_file_for_read(fname) as fd:
         dst = fd
         for rule in rules:
@@ -882,7 +923,10 @@ def fix_file(fname, rules):
                 src.seek(0)
                 try:
                     if options:
+                        options['encoding'] = encoding
                         func(src, dst, options)
+                    elif func.needs_encoding:
+                        func(src, dst, encoding)
                     else:
                         func(src, dst)
                     was_fixed &= True
@@ -896,7 +940,7 @@ def fix_file(fname, rules):
     # b) some fix functions destroyed the code
     if was_fixed and len(fixed) > 0:
         with open_file_for_write(fname) as fd:
-            fd.write(fixed.encode())
+            fd.write(fixed)
         return True
     else:
         notify('{0}: ERROR fixing file. File remained unchanged'.format(fname))
